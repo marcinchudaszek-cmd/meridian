@@ -736,3 +736,69 @@ button:focus-visible {
     transition: none;
   }
 }
+
+/* ---------- warstwy ---------- */
+
+#view-layers {
+  overflow-y: auto;
+  padding-bottom: 6px;
+}
+.layer-block {
+  display: grid;
+  gap: 6px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+}
+.layer-block .toggle {
+  border-bottom: 0;
+  padding-bottom: 2px;
+}
+.layer-block .ghost {
+  justify-self: start;
+}
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 6px;
+}
+.sw {
+  display: inline-block;
+  width: 14px;
+  height: 3px;
+  border-radius: 2px;
+}
+.sw.eq {
+  background: #e4b56a;
+}
+.sw.tr {
+  background: repeating-linear-gradient(90deg, #f0a060 0 4px, transparent 4px 7px);
+}
+.sw.pc {
+  background: repeating-linear-gradient(90deg, #8fd3ff 0 4px, transparent 4px 7px);
+}
+.sw.mer {
+  background: rgba(255, 255, 255, 0.35);
+}
+.sw.q1,
+.sw.q24,
+.sw.q7 {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+}
+.sw.q1 {
+  background: #ff4d4d;
+}
+.sw.q24 {
+  background: #ff9a3c;
+}
+.sw.q7 {
+  background: #f3d27a;
+}
+a.ghost.link {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+  color: var(--fg);
+}

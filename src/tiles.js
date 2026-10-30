@@ -1,9 +1,10 @@
 import * as THREE from "three";
 
 // Szczegółowe zdjęcia przy zbliżeniu: kafelki Web Mercator rozpięte na kuli.
-// Zdjęcia: Sentinel-2 cloudless 2017 (EOX, CC BY 4.0), nazwy: OpenStreetMap w opracowaniu EOX.
+// Zdjęcia: Sentinel-2 cloudless 2016 (EOX, CC BY 4.0), nazwy: OpenStreetMap w opracowaniu EOX.
+// Rocznik 2017 ma dziury (np. nad Iranem), od 2018 licencja jest niekomercyjna.
 const EOX = "https://tiles.maps.eox.at/wmts/1.0.0/";
-const IMAGERY = (z, x, y) => `${EOX}s2cloudless-2017_3857/default/g/${z}/${y}/${x}.jpg`;
+const IMAGERY = (z, x, y) => `${EOX}s2cloudless_3857/default/g/${z}/${y}/${x}.jpg`;
 const LABELS = (z, x, y) => `${EOX}overlay_bright_3857/default/g/${z}/${y}/${x}.png`;
 
 const MAX_ZOOM = 14; // ok. 10 m na piksel; wyżej EOX tylko powiększa
@@ -35,8 +36,11 @@ const IMAGE_FRAG = /* glsl */ `
     float ndl = dot(normalize(vN), sunDir);
     float dayMix = smoothstep(-0.1, 0.16, ndl);
     // zdjęcie satelitarne ma już własne cienie — oświetlamy łagodniej niż teksturę globusu, żeby było czytelne
-    vec3 c = texture2D(map, vUv).rgb * (0.22 + 0.9 * smoothstep(-0.05, 0.45, ndl));
-    gl_FragColor = vec4(c, opacity * dayMix);
+    vec4 t = texture2D(map, vUv);
+    vec3 c = t.rgb * (0.2 + 0.78 * smoothstep(-0.05, 0.45, ndl));
+    // brak danych: przezroczysty PNG albo czysta biel — wtedy widać teksturę bazową globusu
+    float data = t.a * (1.0 - step(0.993, min(t.r, min(t.g, t.b))));
+    gl_FragColor = vec4(c, opacity * dayMix * data);
     #include <colorspace_fragment>
   }
 `;
@@ -106,6 +110,7 @@ export function createTileLayer({ parent, sunDir, latLngLocal, onActive }) {
   const queue = [];
   let inFlight = 0;
   let labelsOn = true;
+  let labelMinZoom = 5;
   let enabled = true;
   let active = false;
   let frame = 0;
@@ -220,7 +225,7 @@ export function createTileLayer({ parent, sunDir, latLngLocal, onActive }) {
         for (let y = rr.y0; y <= rr.y1; y++) {
           for (let xr = rr.x0; xr <= rr.x1; xr++) {
             const x = ((xr % n) + n) % n;
-            const kinds = labelsOn && zz === z && z >= 5 ? ["i", "l"] : ["i"];
+            const kinds = labelsOn && zz === z && z >= labelMinZoom ? ["i", "l"] : ["i"];
             for (const k of kinds) {
               const t = get(k, zz, x, y);
               t.used = frame;
@@ -265,6 +270,10 @@ export function createTileLayer({ parent, sunDir, latLngLocal, onActive }) {
     },
     setEnabled(on) {
       enabled = on;
+    },
+    /** Od którego poziomu pokazywać nazwy z kafelków (gdy są własne nazwy państw — dopiero od miast). */
+    setLabelMinZoom(z) {
+      labelMinZoom = z;
     },
   };
 }

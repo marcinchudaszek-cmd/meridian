@@ -51,6 +51,8 @@ const EARTH_FRAG = /* glsl */ `
   uniform sampler2D dayMap;
   uniform sampler2D nightMap;
   uniform sampler2D waterMap;
+  uniform sampler2D photoMap;
+  uniform float photoMix;
   uniform vec3 sunDir;
   uniform float nightGain;
   varying vec2 vUv;
@@ -62,6 +64,10 @@ const EARTH_FRAG = /* glsl */ `
     float ndl = dot(n, sunDir);
     float dayMix = smoothstep(-0.1, 0.16, ndl);
     vec3 day = texture2D(dayMap, vUv).rgb;
+    // „Ziemia z wczoraj”: dzienne zdjęcie NASA; czarne pola (noc polarna, brak danych) zostają z tekstury bazowej
+    vec3 photo = texture2D(photoMap, vUv).rgb;
+    float photoLum = dot(photo, vec3(0.299, 0.587, 0.114));
+    day = mix(day, photo, photoMix * smoothstep(0.004, 0.03, photoLum));
     vec3 lit = day * (0.035 + 1.18 * max(ndl, 0.0));
     vec3 night = texture2D(nightMap, vUv).rgb * nightGain;
     vec3 col = mix(night + day * 0.025, lit, dayMix);
@@ -72,7 +78,7 @@ const EARTH_FRAG = /* glsl */ `
     // odblask słońca tylko na wodzie
     float water = texture2D(waterMap, vUv).r;
     vec3 h = normalize(sunDir + v);
-    float spec = pow(max(dot(n, h), 0.0), 60.0) * water * dayMix;
+    float spec = pow(max(dot(n, h), 0.0), 60.0) * water * dayMix * (1.0 - photoMix * smoothstep(0.08, 0.3, photoLum));
     col += vec3(1.0, 0.93, 0.8) * spec * 0.55;
     gl_FragColor = vec4(col, 1.0);
     #include <tonemapping_fragment>
@@ -117,7 +123,7 @@ const ATMO_FRAG = /* glsl */ `
   }
 `;
 
-export function createGlobe(container, { texturesBase = "textures/", onPlace, onGround, onTiles }) {
+export function createGlobe(container, { texturesBase = "textures/", onPlace, onGround, onTiles, onPick }) {
   const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
   renderer.setClearColor(0x05070c);
@@ -153,6 +159,8 @@ export function createGlobe(container, { texturesBase = "textures/", onPlace, on
   scene.add(pivot);
 
   const loader = new THREE.TextureLoader();
+  const blankTex = new THREE.DataTexture(new Uint8Array([0, 0, 0, 255]), 1, 1);
+  blankTex.needsUpdate = true;
   const maxAniso = renderer.capabilities.getMaxAnisotropy();
   const maxTex = renderer.capabilities.maxTextureSize;
   let pending = 4;
@@ -177,6 +185,8 @@ export function createGlobe(container, { texturesBase = "textures/", onPlace, on
       waterMap: { value: tex("earth-water.webp", false) },
       sunDir: { value: sunWorld },
       nightGain: { value: 1.35 },
+      photoMap: { value: blankTex },
+      photoMix: { value: 0 },
     },
     vertexShader: EARTH_VERT,
     fragmentShader: EARTH_FRAG,
@@ -213,6 +223,8 @@ export function createGlobe(container, { texturesBase = "textures/", onPlace, on
   scene.add(atmo(1.075, THREE.BackSide, 2.4, 0.95), atmo(1.012, THREE.FrontSide, 3.2, 0.35));
 
   // znaczniki
+  const pickables = [];
+  const frameHooks = [];
   const markerRoot = new THREE.Group();
   markerRoot.rotation.z = TILT;
   scene.add(markerRoot);
@@ -399,6 +411,12 @@ export function createGlobe(container, { texturesBase = "textures/", onPlace, on
     ndc.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
     ndc.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
     raycaster.setFromCamera(ndc, camera);
+    // obiekty warstw (ISS, trzęsienia ziemi) mają pierwszeństwo przed miejscami
+    const layerHit = raycaster.intersectObjects(pickables.filter((o) => o.visible), true).find((h) => h.object.userData.pick);
+    if (layerHit) {
+      onPick?.(layerHit.object.userData.pick, layerHit.instanceId);
+      return;
+    }
     const shown = [...markers.values()].filter((m) => m.group.visible).map((m) => m.group);
     const hit = raycaster.intersectObjects(shown, true).find((h) => h.object.userData.placeId);
     if (hit) {
@@ -475,6 +493,7 @@ export function createGlobe(container, { texturesBase = "textures/", onPlace, on
 
   const clock = new THREE.Clock();
   let cloudsOn = true;
+  let photoOn = false;
   let tileTimer = 0;
   renderer.setAnimationLoop(() => {
     const dt = Math.min(clock.getDelta(), 0.05);
@@ -529,6 +548,7 @@ export function createGlobe(container, { texturesBase = "textures/", onPlace, on
       tiles.update({ lat: c.lat, lng: c.lng, alt, fovV: camera.fov, aspect: camera.aspect, heightPx: container.clientHeight });
     }
     tiles.animate(dt);
+    for (const fn of frameHooks) fn({ dt, alt, markerScale, camera });
     if (!sunMode.real) updateSun();
     renderer.render(scene, camera);
   });
@@ -545,7 +565,7 @@ export function createGlobe(container, { texturesBase = "textures/", onPlace, on
     setViewShift,
     setClouds(on) {
       cloudsOn = on;
-      clouds.visible = on;
+      clouds.visible = on && !photoOn;
     },
     setSpin(on) {
       rig.spin = on && !reduceMotion;
@@ -572,8 +592,29 @@ export function createGlobe(container, { texturesBase = "textures/", onPlace, on
     setTiles(on) {
       tiles.setEnabled(on);
     },
+    /** Grupa w układzie globusu (z nachyleniem osi) — tu warstwy dokładają swoje obiekty. */
+    layerRoot: markerRoot,
+    addPickable(obj) {
+      pickables.push(obj);
+    },
+    onFrame(fn) {
+      frameHooks.push(fn);
+    },
+    setPhoto(texture) {
+      earthMat.uniforms.photoMap.value = texture || blankTex;
+      earthMat.uniforms.photoMix.value = texture ? 1 : 0;
+      // zdjęcie ma prawdziwe chmury z tego dnia — mozaika chmur by je dublowała
+      clouds.visible = cloudsOn && !texture;
+      photoOn = !!texture;
+    },
+    get maxTextureSize() {
+      return maxTex;
+    },
     setLabels(on) {
       tiles.setLabels(on);
+    },
+    setLabelMinZoom(z) {
+      tiles.setLabelMinZoom(z);
     },
     whenReady(fn) {
       if (pending === 0) fn();

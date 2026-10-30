@@ -4,7 +4,11 @@ import "@fontsource/outfit/500.css";
 import "@fontsource/outfit/600.css";
 import "./style.css";
 import { Capacitor } from "@capacitor/core";
+import { TextureLoader, SRGBColorSpace } from "three";
 import { createGlobe } from "./globe.js";
+import { createLayers } from "./layers.js";
+import { countryAt } from "./countries.js";
+import { ago, formatMag, quakeLabel, inSunlight, yesterdayUTC, photoUrl } from "./live.js";
 import { PLACES, CATEGORIES } from "./places.js";
 import {
   subsolarPoint,
@@ -43,6 +47,7 @@ const store = {
 };
 
 const settings = { real: true, clouds: true, spin: true, tiles: true, labels: true, ...store.get("settings", {}) };
+const layerOn = { borders: true, grid: false, quakes: false, iss: true, photo: false, ...store.get("layers", {}) };
 const favorites = new Set(store.get("favorites", []));
 let own = store.get("own", []).filter((p) => p && p.name && Number.isFinite(p.lat) && Number.isFinite(p.lng));
 let home = store.get("home", null);
@@ -62,7 +67,9 @@ const ICON = {
   close: svg('<path d="M6 6l12 12M18 6L6 18"/>'),
   star: svg('<path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/>'),
   stop: svg('<rect x="6" y="6" width="12" height="12" rx="2"/>'),
+  layers: svg('<path d="M12 3l9 5-9 5-9-5 9-5z"/><path d="M3 13l9 5 9-5"/>'),
 };
+$("#btn-layers").innerHTML = ICON.layers;
 $("#btn-tour").innerHTML = ICON.tour;
 $("#btn-quiz").innerHTML = ICON.quiz;
 $("#btn-settings").innerHTML = ICON.settings;
@@ -70,7 +77,7 @@ $("#version").textContent = "wersja " + __APP_VERSION__;
 
 // ---------- globus ----------
 
-let selection = null; // { type: "place", id } albo { type: "point", lat, lng }
+let selection = null; // { type: "place", id } | { type: "point", lat, lng } | { type: "quake", id } | { type: "iss" }
 let mode = "places";
 
 const globe = createGlobe($("#view"), {
@@ -82,6 +89,23 @@ const globe = createGlobe($("#view"), {
     else if (mode === "places") selectPoint(pt);
   },
   onTiles: (on) => ($("#attrib").hidden = !on),
+  onPick: (pick, instanceId) => {
+    if (mode !== "places" && mode !== "layers") return;
+    if (pick.kind === "quake") {
+      const q = layers.quake(instanceId);
+      if (q) selectLayerItem({ type: "quake", id: q.id });
+    } else if (pick.kind === "iss") selectLayerItem({ type: "iss" });
+  },
+});
+const layers = createLayers(globe, {
+  onCountries: () => {
+    if (selection?.type === "point") renderDetail();
+  },
+  onQuakes: (list, error) => renderLayerStatus("quakes", error),
+  onIss: (state, error) => {
+    renderLayerStatus("iss", error);
+    if (selection?.type === "iss" && mode === "places") renderDetail();
+  },
 });
 $("#zoom-in").onclick = () => globe.zoomBy(0.4);
 $("#zoom-out").onclick = () => globe.zoomBy(2.5);
@@ -312,9 +336,13 @@ function renderDetail() {
     });
     return;
   }
+  if (selection.type === "quake") return renderQuakeCard(el);
+  if (selection.type === "iss") return renderIssCard(el);
   const { lat, lng } = selection;
+  const country = layers.countries.length ? countryAt(layers.countries, lat, lng) : null;
+  const where = country ? escapeHtml(country.n) + (country.cap ? " · stolica: " + escapeHtml(country.cap) : "") : layers.countries.length ? "Morze albo ocean" : "Wybrany punkt";
   el.innerHTML = `<div class="card">
-    <p class="region">Wybrany punkt</p><h2>${formatCoord(lat, lng).replace(/\s{3}/, ", ")}</h2>
+    <p class="region">${where}</p><h2>${formatCoord(lat, lng).replace(/\s{3}/, ", ")}</h2>
     ${factsHtml(lat, lng, null, false)}
     <form class="name-form" hidden><input type="text" maxlength="40" placeholder="Nazwa miejsca" aria-label="Nazwa miejsca" required /><button class="solid" type="submit">Zapisz</button></form>
     <div class="card-actions">
@@ -345,6 +373,199 @@ function renderDetail() {
     toast(`Dodano „${name}” do moich miejsc.`);
   };
 }
+
+function escapeHtml(t) {
+  return String(t).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+}
+
+// ---------- trzęsienia ziemi i ISS ----------
+
+let followIss = false;
+
+function selectLayerItem(sel) {
+  stopTour();
+  if (mode !== "places") showView("places");
+  followIss = false;
+  selection = sel;
+  globe.select(null, { fly: false });
+  globe.setPin("tap", null);
+  globe.setArc(null);
+  if (sel.type === "quake") {
+    const q = layers.quakes.find((x) => x.id === sel.id);
+    if (q) globe.focus(q.lat, q.lng);
+  }
+  renderDetail();
+  renderList();
+  if (sheetState() === "mini") setSheet("peek");
+}
+
+/** „Niemcy” albo „nad morzem albo oceanem” — do opisu, gdzie coś jest. */
+function overWhat(lat, lng) {
+  const c = layers.countries.length ? countryAt(layers.countries, lat, lng) : null;
+  return c ? "nad: " + c.n : "nad morzem albo oceanem";
+}
+
+function renderQuakeCard(el) {
+  const q = layers.quakes.find((x) => x.id === selection.id);
+  if (!q) return clearSelection();
+  const c = layers.countries.length ? countryAt(layers.countries, q.lat, q.lng) : null;
+  const time = new Intl.DateTimeFormat("pl-PL", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" }).format(new Date(q.time));
+  el.innerHTML = `<div class="card">
+    <p class="region">Trzęsienie ziemi · ${quakeLabel(q.mag)}</p>
+    <h2>${formatMag(q.mag)} · ${c ? escapeHtml(c.n) : "pod morzem"}</h2>
+    <div class="facts">
+      <span>Kiedy: <b>${ago(q.time)}</b> (${time})</span>
+      <span>Głębokość: <b>${Math.round(q.depth)} km</b>${q.tsunami ? " · duże zdarzenie w strefie oceanicznej" : ""}</span>
+      <span>Opis USGS: ${escapeHtml(q.place)}</span>
+      <span>${formatCoord(q.lat, q.lng)}</span>
+    </div>
+    <div class="card-actions">
+      <button class="ghost small" data-act="close" type="button">Zamknij</button>
+      <button class="ghost small" data-act="zoom" type="button">Przybliż</button>
+      <a class="ghost small link" href="${escapeHtml(q.url)}" target="_blank" rel="noopener">Szczegóły w USGS</a>
+    </div></div>`;
+  el.querySelector('[data-act="close"]').onclick = clearSelection;
+  el.querySelector('[data-act="zoom"]').onclick = () => zoomInto(q);
+}
+
+function renderIssCard(el) {
+  const s = layers.iss;
+  if (!s) {
+    el.innerHTML = `<div class="card"><p class="region">Międzynarodowa Stacja Kosmiczna</p><h2>Liczę orbitę…</h2></div>`;
+    return;
+  }
+  const sun = inSunlight(s.lat, s.lng, s.alt, new Date());
+  el.innerHTML = `<div class="card">
+    <p class="region">Międzynarodowa Stacja Kosmiczna · na żywo</p>
+    <h2>ISS ${escapeHtml(overWhat(s.lat, s.lng))}</h2>
+    <div class="facts">
+      <span>Wysokość: <b>${Math.round(s.alt)} km</b> · prędkość: <b>${Math.round(s.speed).toLocaleString("pl-PL")} km/h</b></span>
+      <span>Teraz: <b>${sun ? "w słońcu" : "w cieniu Ziemi"}</b> · jedno okrążenie trwa ok. 92 minuty</span>
+      <span>${formatCoord(s.lat, s.lng)}</span>
+    </div>
+    <div class="card-actions">
+      <button class="ghost small" data-act="close" type="button">Zamknij</button>
+      <button class="ghost small" data-act="follow" type="button">${followIss ? "Przestań śledzić" : "Śledź ISS"}</button>
+    </div></div>`;
+  el.querySelector('[data-act="close"]').onclick = clearSelection;
+  el.querySelector('[data-act="follow"]').onclick = () => {
+    followIss = !followIss;
+    if (followIss) trackIss();
+    else globe.release();
+    renderDetail();
+  };
+}
+
+function trackIss() {
+  const s = layers.iss;
+  if (followIss && s) globe.focus(s.lat, s.lng, Math.max(globe.radius, 1.6));
+}
+setInterval(() => {
+  if (followIss && selection?.type === "iss") {
+    trackIss();
+    if (mode === "places") renderDetail();
+  }
+}, 1500);
+// przeciągnięcie globusu kończy śledzenie
+$("#view canvas").addEventListener("pointerdown", () => {
+  if (!followIss) return;
+  followIss = false;
+  if (selection?.type === "iss") renderDetail();
+});
+
+// ---------- warstwy ----------
+
+let photoTex = null;
+let photoDate = null;
+
+function applyLayers() {
+  layers.setBorders(layerOn.borders);
+  // polskie nazwy państw zastępują angielskie z kafelków; kafelki dokładają dopiero miasta
+  globe.setLabelMinZoom(layerOn.borders ? 8 : 5);
+  layers.setGrid(layerOn.grid);
+  layers.setQuakes(layerOn.quakes);
+  layers.setIss(layerOn.iss);
+  if (layerOn.photo) loadPhoto();
+  else globe.setPhoto(null);
+  for (const k of Object.keys(layerOn)) {
+    const input = $(`#layer-${k}`);
+    if (input) input.checked = layerOn[k];
+  }
+  renderLayerStatus();
+}
+
+function loadPhoto() {
+  const date = yesterdayUTC();
+  if (photoTex && photoDate === date) return globe.setPhoto(photoTex);
+  const big = globe.maxTextureSize >= 4096 && !matchMedia("(pointer: coarse)").matches;
+  renderLayerStatus("photo", null, "Pobieram zdjęcie z satelitów NASA…");
+  new TextureLoader().load(
+    photoUrl(date, big ? 4096 : 2048),
+    (tex) => {
+      tex.colorSpace = SRGBColorSpace;
+      tex.anisotropy = 8;
+      photoTex?.dispose();
+      photoTex = tex;
+      photoDate = date;
+      if (layerOn.photo) globe.setPhoto(tex);
+      renderLayerStatus("photo");
+    },
+    undefined,
+    () => renderLayerStatus("photo", "Nie udało się pobrać zdjęcia NASA — sprawdź internet."),
+  );
+}
+
+const dayFmt = new Intl.DateTimeFormat("pl-PL", { day: "numeric", month: "long", timeZone: "UTC" });
+
+function renderLayerStatus(only, error, info) {
+  const show = (k) => !only || only === k;
+  const set = (k, text) => ($(`#status-${k}`).textContent = text);
+  if (show("quakes")) {
+    const list = layers.quakes;
+    if (error) set("quakes", error);
+    else if (!layerOn.quakes) set("quakes", "Z ostatnich 7 dni, od M 2,5. Dane USGS, odświeżane co 10 minut.");
+    else if (!list.length) set("quakes", "Pobieram dane USGS…");
+    else {
+      const top = list[list.length - 1];
+      const day = list.filter((q) => Date.now() - q.time < 86400000).length;
+      const c = layers.countries.length ? countryAt(layers.countries, top.lat, top.lng) : null;
+      set("quakes", `${list.length} trzęsień w 7 dni, ${day} z ostatniej doby. Najsilniejsze: ${formatMag(top.mag)}, ${c ? c.n : "pod morzem"}, ${ago(top.time)}.`);
+    }
+    $("#show-quake").hidden = !layerOn.quakes || !list.length;
+  }
+  if (show("iss")) {
+    const s = layers.iss;
+    if (error) set("iss", error);
+    else if (!layerOn.iss) set("iss", "Pozycja liczona na żywo z aktualnej orbity, linia pokazuje najbliższe okrążenie.");
+    else if (!s) set("iss", "Pobieram orbitę…");
+    else set("iss", `Teraz ${overWhat(s.lat, s.lng)}, ${Math.round(s.alt)} km nad ziemią, ${Math.round(s.speed).toLocaleString("pl-PL")} km/h.`);
+    $("#show-iss").hidden = !layerOn.iss || !s;
+  }
+  if (show("photo")) {
+    if (error) set("photo", error);
+    else if (info) set("photo", info);
+    else if (layerOn.photo && photoDate) set("photo", `Zdjęcie z ${dayFmt.format(new Date(photoDate + "T12:00:00Z"))}, z satelitów Suomi NPP i NOAA-20. Zastępuje mozaikę chmur.`);
+    else set("photo", "Prawdziwe chmury, śnieg i dym z wczorajszego dnia, sklejone z przelotów satelitów NASA.");
+  }
+}
+
+for (const k of ["borders", "grid", "quakes", "iss", "photo"]) {
+  $(`#layer-${k}`).onchange = (e) => {
+    layerOn[k] = e.target.checked;
+    store.set("layers", layerOn);
+    applyLayers();
+  };
+}
+$("#show-quake").onclick = () => {
+  const top = layers.quakes[layers.quakes.length - 1];
+  if (top) selectLayerItem({ type: "quake", id: top.id });
+};
+$("#show-iss").onclick = () => {
+  selectLayerItem({ type: "iss" });
+  followIss = true;
+  trackIss();
+  renderDetail();
+};
 
 function zoomInto(pt) {
   stopTour();
@@ -461,7 +682,9 @@ function setSheet(state) {
 
 function showView(name) {
   mode = name;
-  for (const v of ["places", "quiz", "settings"]) $(`#view-${v}`).hidden = v !== name;
+  for (const v of ["places", "quiz", "settings", "layers"]) $(`#view-${v}`).hidden = v !== name;
+  $("#btn-layers").classList.toggle("on", name === "layers");
+  $("#btn-layers").innerHTML = name === "layers" ? ICON.close : ICON.layers;
   $("#btn-quiz").classList.toggle("on", name === "quiz");
   $("#btn-settings").classList.toggle("on", name === "settings");
   $("#btn-quiz").innerHTML = name === "quiz" ? ICON.close : ICON.quiz;
@@ -476,7 +699,15 @@ $("#btn-settings").onclick = () => {
   stopTour();
   if (mode === "quiz") endQuiz();
   showView(mode === "settings" ? "places" : "settings");
-  if (mode === "settings" && sheetState() !== "full" && !isDesktop()) setSheet("full");
+  if (!isDesktop()) setSheet(mode === "settings" ? "full" : "peek");
+};
+
+$("#btn-layers").onclick = () => {
+  stopTour();
+  if (mode === "quiz") endQuiz();
+  showView(mode === "layers" ? "places" : "layers");
+  if (mode === "layers") renderLayerStatus();
+  if (!isDesktop()) setSheet(mode === "layers" ? "full" : "peek");
 };
 
 // przeciąganie uchwytu: w górę — większy, w dół — mniejszy, dotknięcie — przełącz
@@ -713,7 +944,7 @@ if (native) {
   });
 }
 
-if (import.meta.env.MODE === "development") window.__meridian = { globe };
+if (import.meta.env.MODE === "development") window.__meridian = { globe, layers };
 
 // ---------- start ----------
 
@@ -721,6 +952,8 @@ globe.setPlaces(allPlaces());
 globe.setClouds(settings.clouds);
 globe.setSpin(settings.spin);
 globe.setPin("home", home, 0x9fe0c0);
+layers.loadCountries();
+applyLayers();
 $("#time-box").hidden = !settings.real;
 setOffset(0);
 renderChips();

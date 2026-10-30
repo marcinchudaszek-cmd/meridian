@@ -25,7 +25,7 @@
     </div>
     <p class="attrib" id="attrib" hidden>
       <a href="https://s2maps.eu" target="_blank" rel="noopener">Sentinel-2 cloudless</a> by
-      <a href="https://eox.at" target="_blank" rel="noopener">EOX IT Services GmbH</a> (Contains modified Copernicus Sentinel data 2017) ·
+      <a href="https://eox.at" target="_blank" rel="noopener">EOX IT Services GmbH</a> (Contains modified Copernicus Sentinel data 2016) ·
       nazwy © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>, <a href="https://maps.eox.at/#data" target="_blank" rel="noopener">EOX</a>
     </p>
 
@@ -38,6 +38,7 @@
           <h1>Meridian</h1>
         </div>
         <nav class="tools" aria-label="Tryby">
+          <button class="icon" id="btn-layers" type="button" title="Warstwy na żywo" aria-label="Warstwy"></button>
           <button class="icon" id="btn-tour" type="button" title="Wycieczka po miejscach" aria-label="Wycieczka po miejscach"></button>
           <button class="icon" id="btn-quiz" type="button" title="Quiz: gdzie to jest?" aria-label="Quiz"></button>
           <button class="icon" id="btn-settings" type="button" title="Ustawienia" aria-label="Ustawienia"></button>
@@ -55,6 +56,31 @@
       </section>
 
       <section id="view-quiz" class="view" hidden></section>
+
+      <section id="view-layers" class="view" hidden>
+        <h2 class="section-title">Warstwy</h2>
+        <label class="toggle"><span><strong>Granice i nazwy państw</strong><small>Dotknij lądu, a zobaczysz kraj i stolicę</small></span><input type="checkbox" id="layer-borders" /></label>
+        <label class="toggle"><span><strong>Siatka</strong><small class="legend"><i class="sw eq"></i>równik <i class="sw tr"></i>zwrotniki <i class="sw pc"></i>koła podbiegunowe <i class="sw mer"></i>południki co 15° (godzina)</small></span><input type="checkbox" id="layer-grid" /></label>
+        <div class="layer-block">
+          <label class="toggle"><span><strong>Trzęsienia ziemi</strong><small class="legend"><i class="sw q1"></i>ostatnia godzina <i class="sw q24"></i>doba <i class="sw q7"></i>tydzień</small></span><input type="checkbox" id="layer-quakes" /></label>
+          <p class="hint" id="status-quakes"></p>
+          <button class="ghost small" id="show-quake" type="button" hidden>Pokaż najsilniejsze</button>
+        </div>
+        <div class="layer-block">
+          <label class="toggle"><span><strong>ISS na żywo</strong><small>Międzynarodowa Stacja Kosmiczna i jej orbita</small></span><input type="checkbox" id="layer-iss" /></label>
+          <p class="hint" id="status-iss"></p>
+          <button class="ghost small" id="show-iss" type="button" hidden>Leć do ISS i śledź</button>
+        </div>
+        <div class="layer-block">
+          <label class="toggle"><span><strong>Ziemia z wczoraj</strong><small>Prawdziwe zdjęcie całej planety z satelitów NASA</small></span><input type="checkbox" id="layer-photo" /></label>
+          <p class="hint" id="status-photo"></p>
+        </div>
+        <p class="credit">
+          Trzęsienia ziemi: U.S. Geological Survey (domena publiczna). Granice i stolice: Natural Earth (domena publiczna).
+          Orbita ISS: dane NORAD przez wheretheiss.at, obliczenia satellite.js (MIT).
+          Zdjęcie dnia: NASA Global Imagery Browse Services (GIBS), część NASA Earth Science Data and Information System (ESDIS).
+        </p>
+      </section>
 
       <section id="view-settings" class="view" hidden>
         <h2 class="section-title">Ustawienia</h2>
@@ -81,7 +107,7 @@
 
         <p class="credit">
           Zdjęcia Ziemi: NASA Visible Earth — Blue Marble Next Generation, Black Marble 2016 i mozaika chmur (domena publiczna).
-          Zbliżenia: Sentinel-2 cloudless — https://s2maps.eu by EOX IT Services GmbH (Contains modified Copernicus Sentinel data 2017), CC BY 4.0.
+          Zbliżenia: Sentinel-2 cloudless — https://s2maps.eu by EOX IT Services GmbH (Contains modified Copernicus Sentinel data 2016), CC BY 4.0.
           Nazwy miejscowości: © OpenStreetMap contributors, opracowanie EOX.
           Silnik 3D: three.js (MIT). Czcionki Fraunces i Outfit (SIL OFL).
         </p>
