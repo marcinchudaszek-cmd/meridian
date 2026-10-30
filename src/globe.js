@@ -1,10 +1,12 @@
 import * as THREE from "three";
 import { greatCircle } from "./geo.js";
+import { createTileLayer } from "./tiles.js";
 
 const TILT = THREE.MathUtils.degToRad(23.4);
 const Z_AXIS = new THREE.Vector3(0, 0, 1);
-const MIN_R = 1.32;
-const MAX_R = 4.8;
+// wysokość kamery nad powierzchnią w promieniach Ziemi: 0,0016 ≈ 10 km, 3,8 ≈ 24 000 km
+const MIN_ALT = 0.0016;
+const MAX_ALT = 3.8;
 const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 /** Pozycja na kuli w układzie lokalnym globusu (przed nachyleniem osi). */
@@ -115,7 +117,7 @@ const ATMO_FRAG = /* glsl */ `
   }
 `;
 
-export function createGlobe(container, { texturesBase = "textures/", onPlace, onGround }) {
+export function createGlobe(container, { texturesBase = "textures/", onPlace, onGround, onTiles }) {
   const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
   renderer.setClearColor(0x05070c);
@@ -190,7 +192,10 @@ export function createGlobe(container, { texturesBase = "textures/", onPlace, on
     depthWrite: false,
   });
   const clouds = new THREE.Mesh(new THREE.SphereGeometry(1.008, 96, 72), cloudMat);
+  clouds.renderOrder = 300; // chmury nad kafelkami szczegółów
   pivot.add(clouds);
+
+  const tiles = createTileLayer({ parent: pivot, sunDir: sunWorld, latLngLocal, onActive: onTiles });
 
   const atmo = (scale, side, power, strength) =>
     new THREE.Mesh(
@@ -218,7 +223,7 @@ export function createGlobe(container, { texturesBase = "textures/", onPlace, on
   const geoBeam = new THREE.CylinderGeometry(0.0022, 0.0006, 0.16, 8);
 
   function makeMarker(place, color = 0xffd48a) {
-    const pos = latLngLocal(place.lat, place.lng, 1.004);
+    const pos = latLngLocal(place.lat, place.lng, 1.0003);
     const group = new THREE.Group();
     group.position.copy(pos);
     group.quaternion.setFromUnitVectors(Z_AXIS, pos.clone().normalize());
@@ -264,7 +269,7 @@ export function createGlobe(container, { texturesBase = "textures/", onPlace, on
     const pts = greatCircle(a, b, 96);
     const span = Math.acos(THREE.MathUtils.clamp(latLngLocal(a.lat, a.lng, 1).dot(latLngLocal(b.lat, b.lng, 1)), -1, 1));
     const lift = 0.02 + span * 0.09;
-    const curve = new THREE.CatmullRomCurve3(pts.map((p) => latLngLocal(p.lat, p.lng, 1.004 + Math.sin(p.t * Math.PI) * lift)));
+    const curve = new THREE.CatmullRomCurve3(pts.map((p) => latLngLocal(p.lat, p.lng, 1.0006 + Math.sin(p.t * Math.PI) * lift)));
     arc = new THREE.Mesh(
       new THREE.TubeGeometry(curve, 160, 0.0028, 6, false),
       new THREE.MeshBasicMaterial({ color: 0xf3c47a, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending, depthWrite: false }),
@@ -322,8 +327,6 @@ export function createGlobe(container, { texturesBase = "textures/", onPlace, on
   let pinch = null;
   const raycaster = new THREE.Raycaster();
   const ndc = new THREE.Vector2();
-  const earthHit = new THREE.Mesh(new THREE.SphereGeometry(1, 48, 32), new THREE.MeshBasicMaterial({ visible: false }));
-  scene.add(earthHit);
 
   canvas.addEventListener("pointerdown", (e) => {
     if (e.pointerType === "mouse" && e.button !== 0) return;
@@ -331,7 +334,7 @@ export function createGlobe(container, { texturesBase = "textures/", onPlace, on
     pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
     if (pointers.size === 2) {
       const [a, b] = [...pointers.values()];
-      pinch = { dist: Math.hypot(a.x - b.x, a.y - b.y), radius: rig.radius };
+      pinch = { dist: Math.hypot(a.x - b.x, a.y - b.y), alt: rig.radius - 1 };
       drag = null;
     } else {
       drag = { x: e.clientX, y: e.clientY, moved: 0, t: performance.now() };
@@ -346,8 +349,7 @@ export function createGlobe(container, { texturesBase = "textures/", onPlace, on
     if (pinch && pointers.size >= 2) {
       const [a, b] = [...pointers.values()];
       const d = Math.hypot(a.x - b.x, a.y - b.y);
-      rig.radius = THREE.MathUtils.clamp(pinch.radius * (pinch.dist / Math.max(d, 1)), MIN_R, MAX_R);
-      if (rig.focus) rig.focus.radius = rig.radius;
+      setAlt(pinch.alt * (pinch.dist / Math.max(d, 1)));
       return;
     }
     if (!drag) return;
@@ -358,8 +360,10 @@ export function createGlobe(container, { texturesBase = "textures/", onPlace, on
     drag.moved += Math.abs(dx) + Math.abs(dy);
     if (drag.moved < 5) return;
     rig.focus = null;
-    // bliżej Ziemi obracamy wolniej, żeby punkt pod palcem nadążał
-    const k = 0.0052 * ((rig.radius - 0.85) / 2);
+    // punkt pod palcem ma iść razem z palcem: przy samej ziemi kąt na piksel = wysokość × pole widzenia / wysokość ekranu
+    const alt = rig.radius - 1;
+    const follow = (2 * alt * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2))) / Math.max(1, container.clientHeight);
+    const k = Math.min(0.0052 * ((rig.radius - 0.85) / 2), follow * THREE.MathUtils.lerp(1, 3, THREE.MathUtils.smoothstep(alt, 0.05, 1)));
     rig.velT = -dx * k;
     rig.velP = -dy * k;
     rig.theta += rig.velT;
@@ -384,8 +388,7 @@ export function createGlobe(container, { texturesBase = "textures/", onPlace, on
     "wheel",
     (e) => {
       e.preventDefault();
-      rig.radius = THREE.MathUtils.clamp(rig.radius * Math.exp(e.deltaY * 0.0012), MIN_R, MAX_R);
-      if (rig.focus) rig.focus.radius = rig.radius;
+      setAlt((rig.radius - 1) * Math.exp(e.deltaY * 0.0016));
       rig.resumeAt = performance.now() + 1500;
     },
     { passive: false },
@@ -402,8 +405,29 @@ export function createGlobe(container, { texturesBase = "textures/", onPlace, on
       onPlace?.(hit.object.userData.placeId);
       return;
     }
-    const g = raycaster.intersectObject(earthHit)[0];
-    if (g) onGround?.(worldToLatLng(g.point));
+    const point = groundPoint(raycaster.ray);
+    if (!point) return;
+    const now = performance.now();
+    if (lastTap && now - lastTap.t < 380 && Math.hypot(e.clientX - lastTap.x, e.clientY - lastTap.y) < 30) {
+      lastTap = null;
+      const ll = worldToLatLng(point);
+      focus(ll.lat, ll.lng, 1 + Math.max(MIN_ALT, (rig.radius - 1) / 3.5));
+      return;
+    }
+    lastTap = { t: now, x: e.clientX, y: e.clientY };
+    onGround?.(worldToLatLng(point));
+  }
+
+  let lastTap = null;
+  const hitPoint = new THREE.Vector3();
+  const unitSphere = new THREE.Sphere(new THREE.Vector3(), 1);
+  function groundPoint(ray) {
+    return ray.intersectSphere(unitSphere, hitPoint) ? hitPoint.clone() : null;
+  }
+
+  function setAlt(alt) {
+    rig.radius = 1 + THREE.MathUtils.clamp(alt, MIN_ALT, MAX_ALT);
+    if (rig.focus) rig.focus.radius = rig.radius;
   }
 
   // słońce
@@ -451,6 +475,7 @@ export function createGlobe(container, { texturesBase = "textures/", onPlace, on
 
   const clock = new THREE.Clock();
   let cloudsOn = true;
+  let tileTimer = 0;
   renderer.setAnimationLoop(() => {
     const dt = Math.min(clock.getDelta(), 0.05);
     const t = clock.elapsedTime;
@@ -460,7 +485,9 @@ export function createGlobe(container, { texturesBase = "textures/", onPlace, on
     if (!drag && rig.focus) {
       rig.theta = dampAngle(rig.theta, rig.focus.theta, lambda, dt);
       rig.phi = THREE.MathUtils.clamp(dampAngle(rig.phi, rig.focus.phi, lambda, dt), 0.12, Math.PI - 0.12);
-      rig.radius = THREE.MathUtils.damp(rig.radius, rig.focus.radius, lambda, dt);
+      // wysokość wygaszana w skali logarytmicznej — lot z orbity do miasta trwa tyle samo co krótkie zbliżenie
+      const logAlt = THREE.MathUtils.damp(Math.log(rig.radius - 1), Math.log(rig.focus.radius - 1), lambda * 0.9, dt);
+      rig.radius = 1 + Math.exp(logAlt);
       rig.velT = rig.velP = 0;
     } else if (!drag) {
       rig.theta += rig.velT;
@@ -468,13 +495,13 @@ export function createGlobe(container, { texturesBase = "textures/", onPlace, on
       const decay = Math.exp(-dt * 3.1);
       rig.velT *= decay;
       rig.velP *= decay;
-      if (rig.spin && !pinch && performance.now() > rig.resumeAt && Math.abs(rig.velT) < 0.0003) {
+      if (rig.spin && !pinch && rig.radius > 1.5 && performance.now() > rig.resumeAt && Math.abs(rig.velT) < 0.0003) {
         rig.theta += dt * 0.05 * ((rig.radius - 0.9) / 2);
       }
     }
 
     // znaczniki nie puchną przy zbliżeniu
-    const markerScale = THREE.MathUtils.clamp((rig.radius - 1) / 2.7, 0.2, 1.2);
+    const markerScale = THREE.MathUtils.clamp((rig.radius - 1) / 2.7, 0.0007, 1.2);
     for (const m of markers.values()) {
       const on = m.place.id === selectedId;
       const pulse = 1 + Math.sin(t * 2.3 + m.place.lat) * (on ? 0.14 : 0.05);
@@ -486,6 +513,22 @@ export function createGlobe(container, { texturesBase = "textures/", onPlace, on
     spherical.set(rig.radius, rig.phi, rig.theta);
     camera.position.setFromSpherical(spherical);
     camera.lookAt(0, 0, 0);
+
+    // przy samej ziemi bliska płaszczyzna cięcia musi zejść niżej, inaczej obetnie powierzchnię
+    const alt = rig.radius - 1;
+    const near = THREE.MathUtils.clamp(alt * 0.25, 0.0002, 0.05);
+    if (Math.abs(camera.near - near) > near * 0.05) {
+      camera.near = near;
+      camera.updateProjectionMatrix();
+    }
+    cloudMat.uniforms.opacity.value = 0.62 * THREE.MathUtils.smoothstep(alt, 0.08, 0.5);
+    tileTimer -= dt;
+    if (tileTimer <= 0) {
+      tileTimer = 0.15;
+      const c = worldToLatLng(camera.position);
+      tiles.update({ lat: c.lat, lng: c.lng, alt, fovV: camera.fov, aspect: camera.aspect, heightPx: container.clientHeight });
+    }
+    tiles.animate(dt);
     if (!sunMode.real) updateSun();
     renderer.render(scene, camera);
   });
@@ -512,6 +555,25 @@ export function createGlobe(container, { texturesBase = "textures/", onPlace, on
     },
     get radius() {
       return rig.radius;
+    },
+    /** tylko do testów */
+    get debug() {
+      return { radius: rig.radius, theta: rig.theta, phi: rig.phi, velT: rig.velT, velP: rig.velP, focus: rig.focus, drag: !!drag, pinch: !!pinch };
+    },
+    /** factor < 1 przybliża, > 1 oddala */
+    zoomBy(factor) {
+      const target = THREE.MathUtils.clamp((rig.radius - 1) * factor, MIN_ALT, MAX_ALT);
+      const s = new THREE.Spherical().setFromVector3(camera.position);
+      rig.focus = { theta: rig.focus?.theta ?? s.theta, phi: rig.focus?.phi ?? s.phi, radius: 1 + target };
+    },
+    zoomTo(lat, lng, alt) {
+      focus(lat, lng, 1 + THREE.MathUtils.clamp(alt, MIN_ALT, MAX_ALT));
+    },
+    setTiles(on) {
+      tiles.setEnabled(on);
+    },
+    setLabels(on) {
+      tiles.setLabels(on);
     },
     whenReady(fn) {
       if (pending === 0) fn();

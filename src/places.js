@@ -35,6 +35,7 @@ const ROWS = [
   ["lizbona", "Lizbona", "Portugalia", "m", 38.7223, -9.1393, "Europe/Lisbon", "Żółte tramwaje na stromych wzgórzach i ujście Tagu do Atlantyku."],
   ["praga", "Praga", "Czechy", "m", 50.0755, 14.4378, "Europe/Prague", "Most Karola, Hradczany i zegar astronomiczny na Rynku Staromiejskim."],
   ["wieden", "Wiedeń", "Austria", "m", 48.2082, 16.3738, "Europe/Vienna", "Pałace Habsburgów, kawiarnie i walce w sali Musikvereinu."],
+  ["eichendorf", "Eichendorf", "Dolna Bawaria, Niemcy", "m", 48.6336, 12.8564, "Europe/Berlin", "Gmina targowa w dolinie Vils, wśród pól i lasów powiatu Dingolfing-Landau."],
   ["amsterdam", "Amsterdam", "Holandia", "m", 52.3676, 4.9041, "Europe/Amsterdam", "Pierścienie kanałów, wąskie kamienice i więcej rowerów niż mieszkańców."],
   ["reykjavik", "Reykjavík", "Islandia", "m", 64.1466, -21.9426, "Atlantic/Reykjavik", "Najdalej na północ położona stolica państwa, zimą pod zorzą polarną."],
   ["tromso", "Tromsø", "Norwegia", "m", 69.6492, 18.9553, "Europe/Oslo", "Za kołem podbiegunowym: noc polarna zimą, słońce o północy latem."],

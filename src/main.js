@@ -42,7 +42,7 @@ const store = {
   },
 };
 
-const settings = { real: true, clouds: true, spin: true, ...store.get("settings", {}) };
+const settings = { real: true, clouds: true, spin: true, tiles: true, labels: true, ...store.get("settings", {}) };
 const favorites = new Set(store.get("favorites", []));
 let own = store.get("own", []).filter((p) => p && p.name && Number.isFinite(p.lat) && Number.isFinite(p.lng));
 let home = store.get("home", null);
@@ -81,7 +81,10 @@ const globe = createGlobe($("#view"), {
     if (mode === "quiz") quizAnswer(pt);
     else if (mode === "places") selectPoint(pt);
   },
+  onTiles: (on) => ($("#attrib").hidden = !on),
 });
+$("#zoom-in").onclick = () => globe.zoomBy(0.4);
+$("#zoom-out").onclick = () => globe.zoomBy(2.5);
 globe.whenReady(() => $("#loading").classList.add("done"));
 
 // ---------- czas i słońce ----------
@@ -266,7 +269,7 @@ function factsHtml(lat, lng, tz, withCoord = true) {
 function renderDetail() {
   const el = $("#detail");
   if (!selection) {
-    el.innerHTML = `<p class="hint">Przeciągnij globus, szczypnij albo przewiń, żeby przybliżyć. Dotknij świecącego znacznika lub miejsca z listy — kamera tam doleci. Dotknij dowolnego punktu Ziemi, żeby sprawdzić, która tam godzina.</p>`;
+    el.innerHTML = `<p class="hint">Przeciągnij globus, szczypnij, przewiń albo dotknij dwa razy, żeby przybliżyć — z bliska widać zdjęcia satelitarne. Dotknij świecącego znacznika lub miejsca z listy — kamera tam doleci. Dotknij dowolnego punktu Ziemi, żeby sprawdzić, która tam godzina.</p>`;
     return;
   }
   if (selection.type === "place") {
@@ -280,6 +283,7 @@ function renderDetail() {
       ${factsHtml(p.lat, p.lng, p.tz)}
       <div class="card-actions">
         <button class="ghost small" data-act="close" type="button">Zamknij</button>
+        <button class="ghost small" data-act="zoom" type="button">Przybliż</button>
         <button class="ghost small" data-act="home" type="button">Ustaw jako mój punkt</button>
         ${p.cat === "own" ? '<button class="ghost small danger" data-act="delete" type="button">Usuń miejsce</button>' : ""}
       </div></div>`;
@@ -295,6 +299,7 @@ function renderDetail() {
     };
     el.querySelector('[data-act="close"]').onclick = clearSelection;
     el.querySelector('[data-act="home"]').onclick = () => setHome({ lat: p.lat, lng: p.lng, label: p.name });
+    el.querySelector('[data-act="zoom"]').onclick = () => zoomInto(p);
     el.querySelector('[data-act="delete"]')?.addEventListener("click", () => {
       own = own.filter((o) => o.id !== p.id);
       favorites.delete(p.id);
@@ -314,12 +319,14 @@ function renderDetail() {
     <form class="name-form" hidden><input type="text" maxlength="40" placeholder="Nazwa miejsca" aria-label="Nazwa miejsca" required /><button class="solid" type="submit">Zapisz</button></form>
     <div class="card-actions">
       <button class="ghost small" data-act="close" type="button">Zamknij</button>
+      <button class="ghost small" data-act="zoom" type="button">Przybliż</button>
       <button class="ghost small" data-act="add" type="button">Dodaj do moich miejsc</button>
       <button class="ghost small" data-act="home" type="button">Ustaw jako mój punkt</button>
     </div></div>`;
   const form = el.querySelector(".name-form");
   el.querySelector('[data-act="close"]').onclick = clearSelection;
   el.querySelector('[data-act="home"]').onclick = () => setHome({ lat, lng, label: null });
+  el.querySelector('[data-act="zoom"]').onclick = () => zoomInto({ lat, lng });
   el.querySelector('[data-act="add"]').onclick = (e) => {
     form.hidden = false;
     e.currentTarget.hidden = true;
@@ -337,6 +344,14 @@ function renderDetail() {
     selectPlace(place.id, { fly: false });
     toast(`Dodano „${name}” do moich miejsc.`);
   };
+}
+
+function zoomInto(pt) {
+  stopTour();
+  // ok. 30 km nad ziemią — widać miejscowość i okolicę; podwójne dotknięcie przybliża dalej
+  globe.zoomTo(pt.lat, pt.lng, 0.005);
+  if (!isDesktop()) setSheet("mini");
+  if (!settings.tiles) toast("Włącz w ustawieniach zdjęcia satelitarne, żeby widzieć szczegóły.");
 }
 
 // ---------- mój punkt ----------
@@ -384,6 +399,20 @@ $("#home-gps").onclick = () => {
 const optReal = $("#opt-real");
 const optClouds = $("#opt-clouds");
 const optSpin = $("#opt-spin");
+const optTiles = $("#opt-tiles");
+const optLabels = $("#opt-labels");
+optTiles.checked = settings.tiles;
+optLabels.checked = settings.labels;
+optTiles.onchange = () => {
+  settings.tiles = optTiles.checked;
+  globe.setTiles(settings.tiles);
+  saveSettings();
+};
+optLabels.onchange = () => {
+  settings.labels = optLabels.checked;
+  globe.setLabels(settings.labels);
+  saveSettings();
+};
 const optTime = $("#opt-time");
 optReal.checked = settings.real;
 optClouds.checked = settings.clouds;
@@ -406,6 +435,8 @@ optClouds.onchange = () => {
 optSpin.onchange = () => {
   settings.spin = optSpin.checked;
   globe.setSpin(settings.spin);
+globe.setTiles(settings.tiles);
+globe.setLabels(settings.labels);
   saveSettings();
 };
 function setOffset(h) {
@@ -680,6 +711,8 @@ if (native) {
     });
   });
 }
+
+if (import.meta.env.MODE === "development") window.__meridian = { globe };
 
 // ---------- start ----------
 

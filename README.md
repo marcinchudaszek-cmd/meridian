@@ -7,7 +7,8 @@ Aplikacja na Androida (`com.beagleappsstudio.meridian`) i wersja web na https://
 ## Funkcje
 
 - **prawdziwe słońce** — linia dnia i nocy liczona z pozycji Słońca w tej chwili, światła miast po nocnej stronie, odblask słońca na oceanach; suwak przesuwa czas o ±24 h
-- **69 miejsc** w kategoriach Polska, miasta, cuda i zabytki, przyroda — z czasem lokalnym (strefy IANA) i stanem dnia przy każdym
+- **zbliżenia satelitarne** — z bliska globus doczytuje zdjęcia Sentinel-2 (ok. 10 m na piksel) z nazwami miejscowości z OpenStreetMap; przybliżanie kółkiem, szczypnięciem, przyciskami +/−, podwójnym dotknięciem albo „Przybliż” w karcie miejsca
+- **70 miejsc** w kategoriach Polska, miasta, cuda i zabytki, przyroda — z czasem lokalnym (strefy IANA) i stanem dnia przy każdym
 - **wyszukiwarka** odporna na polskie znaki, ulubione, **własne miejsca** (dotknij globusu → „Dodaj do moich miejsc”)
 - **mój punkt** — z lokalizacji albo dotknięty na globusie; przy każdym miejscu odległość, szacowany czas lotu i łuk trasy po wielkim kole
 - **quiz „Gdzie to jest?”** — 10 rund, trzy poziomy (łatwy, cały świat, Polska), do 1000 punktów za rundę, rekordy
@@ -36,6 +37,7 @@ Podgląd w aplikacji Claude: serwery `meridian` (dev, port 5190) i `meridian-web
 ## Źródła
 
 - Zdjęcia Ziemi: NASA Visible Earth — Blue Marble Next Generation (grudzień 2004), Black Marble 2016, mozaika chmur. Domena publiczna.
+- Zbliżenia: Sentinel-2 cloudless — https://s2maps.eu by EOX IT Services GmbH (Contains modified Copernicus Sentinel data 2017), CC BY 4.0. Nazwy miejscowości: © OpenStreetMap contributors, opracowanie EOX.
 - Silnik 3D: [three.js](https://threejs.org) (MIT). Czcionki: Fraunces i Outfit (SIL Open Font License).
 - Pierwsza wersja wizualna powstała w Grok Build; kod przepisany od nowa na Vite + three.js + Capacitor.
 

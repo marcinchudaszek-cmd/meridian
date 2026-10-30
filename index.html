@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#05070c" />
-    <meta name="description" content="Meridian — atlas nocy. Globus 3D z prawdziwym dniem i nocą, 69 miejscami świata, quizem geograficznym i odległościami." />
+    <meta name="description" content="Meridian — atlas nocy. Globus 3D z prawdziwym dniem i nocą, zbliżeniami satelitarnymi, 70 miejscami świata, quizem geograficznym i odległościami." />
     <title>Meridian — atlas nocy</title>
     <link rel="icon" href="icon.png" />
     <link rel="manifest" href="manifest.webmanifest" />
@@ -18,6 +18,16 @@
 
     <div class="clock" id="clock" aria-live="off"></div>
     <div class="loading" id="loading">Ładuję Ziemię…</div>
+
+    <div class="zoom" role="group" aria-label="Przybliżenie">
+      <button class="icon" id="zoom-in" type="button" aria-label="Przybliż" title="Przybliż">+</button>
+      <button class="icon" id="zoom-out" type="button" aria-label="Oddal" title="Oddal">−</button>
+    </div>
+    <p class="attrib" id="attrib" hidden>
+      <a href="https://s2maps.eu" target="_blank" rel="noopener">Sentinel-2 cloudless</a> by
+      <a href="https://eox.at" target="_blank" rel="noopener">EOX IT Services GmbH</a> (Contains modified Copernicus Sentinel data 2017) ·
+      nazwy © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>, <a href="https://maps.eox.at/#data" target="_blank" rel="noopener">EOX</a>
+    </p>
 
     <aside class="panel" id="panel" data-sheet="peek">
       <button class="grip" id="grip" type="button" aria-label="Rozwiń albo zwiń panel"><span></span></button>
@@ -55,6 +65,8 @@
           <button class="ghost small" id="time-now" type="button">Wróć do teraz</button>
         </div>
         <label class="toggle"><span><strong>Chmury</strong><small>Zdjęcie chmur NASA</small></span><input type="checkbox" id="opt-clouds" /></label>
+        <label class="toggle"><span><strong>Zdjęcia satelitarne przy zbliżeniu</strong><small>Sentinel-2, ok. 10 m na piksel — wymaga internetu</small></span><input type="checkbox" id="opt-tiles" /></label>
+        <label class="toggle"><span><strong>Nazwy miejscowości</strong><small>Na zdjęciach satelitarnych, z OpenStreetMap</small></span><input type="checkbox" id="opt-labels" /></label>
         <label class="toggle"><span><strong>Powolny obrót</strong><small>Globus kręci się, gdy go nie dotykasz</small></span><input type="checkbox" id="opt-spin" /></label>
 
         <div class="home-box">
@@ -69,6 +81,8 @@
 
         <p class="credit">
           Zdjęcia Ziemi: NASA Visible Earth — Blue Marble Next Generation, Black Marble 2016 i mozaika chmur (domena publiczna).
+          Zbliżenia: Sentinel-2 cloudless — https://s2maps.eu by EOX IT Services GmbH (Contains modified Copernicus Sentinel data 2017), CC BY 4.0.
+          Nazwy miejscowości: © OpenStreetMap contributors, opracowanie EOX.
           Silnik 3D: three.js (MIT). Czcionki Fraunces i Outfit (SIL OFL).
         </p>
         <p class="credit">Meridian · Beagleapps · <span id="version"></span></p>
