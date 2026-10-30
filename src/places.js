@@ -39,6 +39,7 @@ const ROWS = [
   ["ksiaz", "Zamek Książ", "Wałbrzych, Polska", "p", 50.8423, 16.2919, "Europe/Warsaw", "Jeden z największych zamków w Polsce, na skale nad przełomem Pełcznicy."],
   ["swidnica", "Kościół Pokoju w Świdnicy", "Polska", "p", 50.846, 16.4818, "Europe/Warsaw", "Ogromna drewniana świątynia z XVII wieku, wpisana na listę UNESCO."],
   ["boleslawiec", "Bolesławiec", "Polska", "p", 51.2645, 15.5697, "Europe/Warsaw", "Miasto ceramiki w niebieskie wzory, znanej na całym świecie."],
+  ["jelenia-gora", "Jelenia Góra", "Polska", "p", 50.9031, 15.7344, "Europe/Warsaw", "Miasto w Kotlinie Jeleniogórskiej nad Bobrem, z rynkiem w podcieniach i widokiem na Karkonosze."],
 
   // Niemcy
   ["eichendorf", "Eichendorf", "Dolna Bawaria, Niemcy", "d", 48.6336, 12.8564, "Europe/Berlin", "Gmina targowa w dolinie Vils, wśród pól i lasów powiatu Dingolfing-Landau."],

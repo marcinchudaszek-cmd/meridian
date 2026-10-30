@@ -9,3 +9,5 @@ android/release.keystore
 android/keystore.properties
 *.keystore
 *.jks
+*.aab
+play-assets/screenshots/

@@ -15,7 +15,7 @@ Aplikacja na Androida (`com.beagleappsstudio.meridian`) i wersja web na https://
 - **prawdziwe niebo** — gwiazdy do 6 mag z katalogu Yale, linie i polskie nazwy 88 gwiazdozbiorów, ustawione wg czasu gwiazdowego
 - **Księżyc** w prawdziwym położeniu i fazie (algorytm Meeusa), karta z fazą, wiekiem i dniami do pełni
 - **udostępnianie widoku** linkiem `#m=szer,dł,wysokość,id`
-- **144 miejsca** w kategoriach Polska, Niemcy, miasta, cuda i zabytki, przyroda — z czasem lokalnym (strefy IANA) i stanem dnia przy każdym
+- **145 miejsc** w kategoriach Polska, Niemcy, miasta, cuda i zabytki, przyroda — z czasem lokalnym (strefy IANA) i stanem dnia przy każdym
 - **wyszukiwarka** odporna na polskie znaki, ulubione, **własne miejsca** (dotknij globusu → „Dodaj do moich miejsc”)
 - **mój punkt** — z lokalizacji albo dotknięty na globusie; przy każdym miejscu odległość, szacowany czas lotu i łuk trasy po wielkim kole
 - **quiz „Gdzie to jest?”** — 10 rund, cztery poziomy (łatwy, cały świat, Polska, Niemcy), do 1000 punktów za rundę, rekordy
