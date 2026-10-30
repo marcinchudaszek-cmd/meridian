@@ -541,6 +541,7 @@ const LEVELS = [
   { id: "easy", label: "Łatwy", desc: "Miasta świata, z podpowiedzią kraju", pool: () => PLACES.filter((p) => p.cat === "m"), hint: true },
   { id: "world", label: "Cały świat", desc: "Miasta, cuda i przyroda — bez podpowiedzi", pool: () => PLACES, hint: false },
   { id: "pl", label: "Polska", desc: "Miejsca w Polsce — tu liczy się każdy kilometr", pool: () => PLACES.filter((p) => p.cat === "p"), hint: false, scale: 8 },
+  { id: "de", label: "Niemcy", desc: "Bawaria i reszta Niemiec — z Eichendorfem włącznie", pool: () => PLACES.filter((p) => p.cat === "d"), hint: false, scale: 6 },
 ];
 const ROUNDS = 10;
 let quiz = null;
