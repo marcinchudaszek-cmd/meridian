@@ -1,0 +1,15 @@
+{
+  "name": "Meridian — atlas nocy",
+  "short_name": "Meridian",
+  "description": "Globus 3D z prawdziwym dniem i nocą, quizem i odległościami.",
+  "lang": "pl",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#05070c",
+  "theme_color": "#05070c",
+  "icons": [
+    { "src": "icon.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

@@ -1,0 +1,93 @@
+// Katalog miejsc: [id, nazwa, region, kategoria, szer., dł., strefa czasowa IANA, opis]
+// Kategorie: m — miasta, c — cuda i zabytki, n — przyroda, p — Polska.
+
+export const CATEGORIES = [
+  { id: "all", label: "Wszystkie" },
+  { id: "fav", label: "Ulubione" },
+  { id: "p", label: "Polska" },
+  { id: "m", label: "Miasta" },
+  { id: "c", label: "Cuda i zabytki" },
+  { id: "n", label: "Przyroda" },
+  { id: "own", label: "Moje" },
+];
+
+const ROWS = [
+  // Polska
+  ["krakow", "Kraków", "Polska", "p", 50.0614, 19.9366, "Europe/Warsaw", "Rynek, Wawel i ciepły kamień starego miasta nad Wisłą."],
+  ["warszawa", "Warszawa", "Polska", "p", 52.2297, 21.0122, "Europe/Warsaw", "Odbudowana Starówka, Łazienki i panorama wieżowców nad Wisłą."],
+  ["gdansk", "Gdańsk", "Polska", "p", 54.352, 18.6466, "Europe/Warsaw", "Długi Targ, Żuraw nad Motławą i bursztynowe kamienice."],
+  ["wroclaw", "Wrocław", "Polska", "p", 51.1079, 17.0385, "Europe/Warsaw", "Miasto mostów i wysp na Odrze, z krasnalami na każdym rogu."],
+  ["torun", "Toruń", "Polska", "p", 53.0138, 18.5984, "Europe/Warsaw", "Gotyk z czerwonej cegły, miasto Kopernika i pierników."],
+  ["poznan", "Poznań", "Polska", "p", 52.4064, 16.9252, "Europe/Warsaw", "Kolorowy Stary Rynek i koziołki trykające się na ratuszu w południe."],
+  ["morskie-oko", "Morskie Oko", "Tatry, Polska", "p", 49.2013, 20.071, "Europe/Warsaw", "Największe jezioro Tatr pod ścianą Mięguszowieckich Szczytów."],
+  ["malbork", "Zamek w Malborku", "Polska", "p", 54.0398, 19.0277, "Europe/Warsaw", "Największy ceglany zamek świata, dawna stolica zakonu krzyżackiego."],
+  ["wieliczka", "Kopalnia soli Wieliczka", "Polska", "p", 49.983, 20.055, "Europe/Warsaw", "Komory, kaplice i jeziora wykute w soli setki metrów pod ziemią."],
+  ["bialowieza", "Puszcza Białowieska", "Polska i Białoruś", "p", 52.7008, 23.8693, "Europe/Warsaw", "Ostatni tak duży las nizinny Europy i dom żubrów."],
+  ["leba", "Ruchome wydmy w Łebie", "Słowiński PN, Polska", "p", 54.7631, 17.5559, "Europe/Warsaw", "Piaszczysta pustynia nad Bałtykiem, wędrująca nawet kilka metrów rocznie."],
+  ["tarnica", "Tarnica", "Bieszczady, Polska", "p", 49.0747, 22.7264, "Europe/Warsaw", "Najwyższy szczyt polskich Bieszczad, z widokiem na połoniny."],
+
+  // Miasta
+  ["barcelona", "Barcelona", "Katalonia, Hiszpania", "m", 41.3874, 2.1686, "Europe/Madrid", "Gotyckie zaułki, Sagrada Família i światło latarni nad morzem."],
+  ["paryz", "Paryż", "Francja", "m", 48.8566, 2.3522, "Europe/Paris", "Bulwary nad Sekwaną i wieża Eiffla rozświetlana co godzinę po zmroku."],
+  ["londyn", "Londyn", "Wielka Brytania", "m", 51.5074, -0.1278, "Europe/London", "Tamiza, Big Ben i miasto, przez które biegnie południk zerowy."],
+  ["rzym", "Rzym", "Włochy", "m", 41.9028, 12.4964, "Europe/Rome", "Fora, fontanny i trzy tysiące lat historii na siedmiu wzgórzach."],
+  ["wenecja", "Wenecja", "Włochy", "m", 45.4408, 12.3155, "Europe/Rome", "Miasto na ponad stu wyspach, gdzie ulicami są kanały."],
+  ["lizbona", "Lizbona", "Portugalia", "m", 38.7223, -9.1393, "Europe/Lisbon", "Żółte tramwaje na stromych wzgórzach i ujście Tagu do Atlantyku."],
+  ["praga", "Praga", "Czechy", "m", 50.0755, 14.4378, "Europe/Prague", "Most Karola, Hradczany i zegar astronomiczny na Rynku Staromiejskim."],
+  ["wieden", "Wiedeń", "Austria", "m", 48.2082, 16.3738, "Europe/Vienna", "Pałace Habsburgów, kawiarnie i walce w sali Musikvereinu."],
+  ["amsterdam", "Amsterdam", "Holandia", "m", 52.3676, 4.9041, "Europe/Amsterdam", "Pierścienie kanałów, wąskie kamienice i więcej rowerów niż mieszkańców."],
+  ["reykjavik", "Reykjavík", "Islandia", "m", 64.1466, -21.9426, "Atlantic/Reykjavik", "Najdalej na północ położona stolica państwa, zimą pod zorzą polarną."],
+  ["tromso", "Tromsø", "Norwegia", "m", 69.6492, 18.9553, "Europe/Oslo", "Za kołem podbiegunowym: noc polarna zimą, słońce o północy latem."],
+  ["stambul", "Stambuł", "Turcja", "m", 41.0082, 28.9784, "Europe/Istanbul", "Miasto na dwóch kontynentach nad cieśniną Bosfor."],
+  ["kair", "Kair", "Egipt", "m", 30.0444, 31.2357, "Africa/Cairo", "Największe miasto świata arabskiego, rozciągnięte wzdłuż Nilu."],
+  ["marrakesz", "Marrakesz", "Maroko", "m", 31.6295, -7.9811, "Africa/Casablanca", "Czerwone mury medyny i zapach przypraw na placu Dżamaa al-Fana."],
+  ["kapsztad", "Kapsztad", "Republika Południowej Afryki", "m", -33.9249, 18.4241, "Africa/Johannesburg", "Góra Stołowa nad zatoką, niedaleko Przylądka Dobrej Nadziei."],
+  ["dubaj", "Dubaj", "Zjednoczone Emiraty Arabskie", "m", 25.2048, 55.2708, "Asia/Dubai", "Burdż Chalifa, najwyższy budynek świata, wyrasta prosto z pustyni."],
+  ["tokio", "Tokio", "Japonia", "m", 35.6762, 139.6503, "Asia/Tokyo", "Największa aglomeracja świata — neony Shinjuku i ciche świątynie obok."],
+  ["kioto", "Kioto", "Japonia", "m", 35.0116, 135.7681, "Asia/Tokyo", "Dawna stolica: świątynie, klonowe ogrody i drewniane uliczki Gion."],
+  ["singapur", "Singapur", "Singapur", "m", 1.3521, 103.8198, "Asia/Singapore", "Miasto-państwo tuż przy równiku, z ogrodami wśród wieżowców."],
+  ["hongkong", "Hongkong", "Chiny", "m", 22.3193, 114.1694, "Asia/Hong_Kong", "Las wieżowców między górami a portem Wiktorii."],
+  ["bangkok", "Bangkok", "Tajlandia", "m", 13.7563, 100.5018, "Asia/Bangkok", "Złote świątynie, pływające targi i rzeka Menam."],
+  ["sydney", "Sydney", "Australia", "m", -33.8688, 151.2093, "Australia/Sydney", "Port, muszle Opery i most Harbour Bridge nad zatoką."],
+  ["nowy-jork", "Nowy Jork", "Stany Zjednoczone", "m", 40.7128, -74.006, "America/New_York", "Siatka ulic Manhattanu i światła mostów nad East River."],
+  ["san-francisco", "San Francisco", "Stany Zjednoczone", "m", 37.7749, -122.4194, "America/Los_Angeles", "Golden Gate we mgle i strome ulice z tramwajami linowymi."],
+  ["vancouver", "Vancouver", "Kanada", "m", 49.2827, -123.1207, "America/Vancouver", "Miasto między oceanem a ośnieżonymi Górami Nadbrzeżnymi."],
+  ["meksyk", "Meksyk", "Meksyk", "m", 19.4326, -99.1332, "America/Mexico_City", "Ogromna stolica na miejscu azteckiego Tenochtitlán, 2240 m n.p.m."],
+  ["hawana", "Hawana", "Kuba", "m", 23.1136, -82.3666, "America/Havana", "Kolonialne fasady, stare amerykańskie auta i nadmorski Malecón."],
+  ["rio", "Rio de Janeiro", "Brazylia", "m", -22.9068, -43.1729, "America/Sao_Paulo", "Głowa Cukru, Copacabana i Chrystus Odkupiciel na szczycie Corcovado."],
+  ["buenos-aires", "Buenos Aires", "Argentyna", "m", -34.6037, -58.3816, "America/Argentina/Buenos_Aires", "Tango w San Telmo i szerokie aleje nad estuarium La Platy."],
+
+  // Cuda i zabytki
+  ["giza", "Piramidy w Gizie", "Egipt", "c", 29.9792, 31.1342, "Africa/Cairo", "Jedyny z siedmiu cudów świata starożytnego, który przetrwał do dziś."],
+  ["petra", "Petra", "Jordania", "c", 30.3285, 35.4444, "Asia/Amman", "Miasto Nabatejczyków wykute w różowym piaskowcu."],
+  ["wielki-mur", "Wielki Mur (Mutianyu)", "Chiny", "c", 40.4319, 116.5704, "Asia/Shanghai", "Odcinek muru wijący się po zalesionych grzbietach na północ od Pekinu."],
+  ["tadz-mahal", "Tadż Mahal", "Agra, Indie", "c", 27.1751, 78.0421, "Asia/Kolkata", "Marmurowe mauzoleum wzniesione przez szacha Dżahana dla zmarłej żony."],
+  ["koloseum", "Koloseum", "Rzym, Włochy", "c", 41.8902, 12.4922, "Europe/Rome", "Amfiteatr na około 50 tysięcy widzów, otwarty w 80 roku n.e."],
+  ["machu-picchu", "Machu Picchu", "Peru", "c", -13.1631, -72.545, "America/Lima", "Inkaskie miasto na grzbiecie Andów, odkryte dla świata w 1911 roku."],
+  ["chichen-itza", "Chichén Itzá", "Jukatan, Meksyk", "c", 20.6843, -88.5678, "America/Merida", "Piramida Kukulkana, po której w równonoc pełznie świetlny wąż."],
+  ["angkor-wat", "Angkor Wat", "Kambodża", "c", 13.4125, 103.867, "Asia/Phnom_Penh", "Największa świątynia świata, otoczona fosą i dżunglą."],
+  ["akropol", "Akropol", "Ateny, Grecja", "c", 37.9715, 23.7257, "Europe/Athens", "Partenon na skalistym wzgórzu nad Atenami."],
+  ["stonehenge", "Stonehenge", "Anglia, Wielka Brytania", "c", 51.1789, -1.8262, "Europe/London", "Krąg kamieni ustawiony ponad 4500 lat temu, zgrany z przesileniami."],
+  ["rapa-nui", "Posągi moai", "Rapa Nui (Wyspa Wielkanocna), Chile", "c", -27.1127, -109.3497, "Pacific/Easter", "Kamienne głowy na jednej z najbardziej odludnych zamieszkanych wysp."],
+  ["sagrada", "Sagrada Família", "Barcelona, Hiszpania", "c", 41.4036, 2.1744, "Europe/Madrid", "Bazylika Gaudíego budowana od 1882 roku."],
+
+  // Przyroda
+  ["wielki-kanion", "Wielki Kanion", "Arizona, Stany Zjednoczone", "n", 36.0544, -112.1401, "America/Phoenix", "Rzeka Kolorado wyrzeźbiła wąwóz głęboki na prawie 1,9 km."],
+  ["niagara", "Wodospad Niagara", "Kanada i Stany Zjednoczone", "n", 43.0962, -79.0377, "America/Toronto", "Trzy wodospady na granicy, z ogromnym przepływem wody."],
+  ["everest", "Mount Everest", "Nepal i Chiny", "n", 27.9881, 86.925, "Asia/Kathmandu", "Najwyższy szczyt Ziemi, 8849 m nad poziomem morza."],
+  ["wiktoria", "Wodospad Wiktorii", "Zambia i Zimbabwe", "n", -17.9243, 25.8572, "Africa/Harare", "Zambezi spada ponad stumetrowym progiem; miejscowi mówią o „dymie, który grzmi”."],
+  ["kilimandzaro", "Kilimandżaro", "Tanzania", "n", -3.0674, 37.3556, "Africa/Dar_es_Salaam", "Najwyższa góra Afryki, wulkan ze śniegiem niemal na równiku."],
+  ["serengeti", "Serengeti", "Tanzania", "n", -2.3333, 34.8333, "Africa/Dar_es_Salaam", "Sawanna wielkiej wędrówki gnu i zebr."],
+  ["sahara", "Erg Chebbi", "Sahara, Maroko", "n", 31.15, -3.9667, "Africa/Casablanca", "Pomarańczowe wydmy na skraju największej gorącej pustyni świata."],
+  ["galapagos", "Galápagos", "Ekwador", "n", -0.9538, -90.9656, "Pacific/Galapagos", "Wulkaniczne wyspy żółwi olbrzymich, które zainspirowały Darwina."],
+  ["iguazu", "Wodospady Iguazú", "Argentyna i Brazylia", "n", -25.6953, -54.4367, "America/Argentina/Buenos_Aires", "Ponad 270 kaskad w podzwrotnikowym lesie, z Gardzielą Diabła."],
+  ["rafa", "Wielka Rafa Koralowa", "Australia", "n", -18.2871, 147.6992, "Australia/Brisbane", "Największa struktura zbudowana przez organizmy żywe, widoczna z orbity."],
+  ["uluru", "Uluru", "Australia", "n", -25.3444, 131.0369, "Australia/Darwin", "Święta skała Anangu, czerwieniejąca o zachodzie słońca."],
+  ["ha-long", "Zatoka Ha Long", "Wietnam", "n", 20.9101, 107.1839, "Asia/Ho_Chi_Minh", "Prawie dwa tysiące wapiennych wysp wyrastających z morza."],
+  ["bajkal", "Bajkał", "Syberia, Rosja", "n", 53.5587, 108.165, "Asia/Irkutsk", "Najgłębsze jezioro świata, z około 20% słodkiej wody powierzchniowej Ziemi."],
+  ["geiranger", "Geirangerfjord", "Norwegia", "n", 62.1049, 7.0947, "Europe/Oslo", "Wąski fiord wśród stromych ścian i wodospadów."],
+  ["santorini", "Santorini", "Grecja", "n", 36.3932, 25.4615, "Europe/Athens", "Białe domy na krawędzi kaldery po wybuchu wulkanu sprzed 3600 lat."],
+  ["antarktyda", "Biegun Południowy", "Antarktyda", "n", -90, 0, "Antarctica/McMurdo", "Lodowa wyżyna na wysokości 2800 m, gdzie zbiegają się wszystkie południki."],
+];
+
+export const PLACES = ROWS.map(([id, name, region, cat, lat, lng, tz, blurb]) => ({ id, name, region, cat, lat, lng, tz, blurb }));

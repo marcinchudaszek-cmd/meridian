@@ -1,0 +1,11 @@
+node_modules/
+dist/
+dist-web/
+.env
+.env.*
+
+# Klucz wydania i hasła — tylko na tym dysku
+android/release.keystore
+android/keystore.properties
+*.keystore
+*.jks

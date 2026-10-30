@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="pl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#05070c" />
+    <meta name="description" content="Meridian — atlas nocy. Globus 3D z prawdziwym dniem i nocą, 69 miejscami świata, quizem geograficznym i odległościami." />
+    <title>Meridian — atlas nocy</title>
+    <link rel="icon" href="icon.png" />
+    <link rel="manifest" href="manifest.webmanifest" />
+    <meta property="og:title" content="Meridian — atlas nocy" />
+    <meta property="og:description" content="Globus 3D z prawdziwym dniem i nocą, quizem i odległościami." />
+    <meta property="og:image" content="https://beagleapps.pl/apps/meridian/og.jpg" />
+  </head>
+  <body>
+    <div id="view"></div>
+    <div class="vignette" aria-hidden="true"></div>
+
+    <div class="clock" id="clock" aria-live="off"></div>
+    <div class="loading" id="loading">Ładuję Ziemię…</div>
+
+    <aside class="panel" id="panel" data-sheet="peek">
+      <button class="grip" id="grip" type="button" aria-label="Rozwiń albo zwiń panel"><span></span></button>
+
+      <header class="top">
+        <div>
+          <p class="eyebrow">Atlas nocy</p>
+          <h1>Meridian</h1>
+        </div>
+        <nav class="tools" aria-label="Tryby">
+          <button class="icon" id="btn-tour" type="button" title="Wycieczka po miejscach" aria-label="Wycieczka po miejscach"></button>
+          <button class="icon" id="btn-quiz" type="button" title="Quiz: gdzie to jest?" aria-label="Quiz"></button>
+          <button class="icon" id="btn-settings" type="button" title="Ustawienia" aria-label="Ustawienia"></button>
+        </nav>
+      </header>
+
+      <section id="view-places" class="view">
+        <div id="detail"></div>
+        <label class="search">
+          <span class="sr">Szukaj miejsca</span>
+          <input id="q" type="search" placeholder="Szukaj miejsca albo kraju" autocomplete="off" enterkeyhint="search" />
+        </label>
+        <div class="chips" id="chips" role="tablist" aria-label="Kategorie"></div>
+        <ul class="list" id="list"></ul>
+      </section>
+
+      <section id="view-quiz" class="view" hidden></section>
+
+      <section id="view-settings" class="view" hidden>
+        <h2 class="section-title">Ustawienia</h2>
+        <label class="toggle"><span><strong>Prawdziwe słońce</strong><small>Dzień i noc tak jak teraz na Ziemi</small></span><input type="checkbox" id="opt-real" /></label>
+        <div class="slider" id="time-box">
+          <div class="slider-head"><span>Przesuń czas</span><output id="time-out">teraz</output></div>
+          <input type="range" id="opt-time" min="-24" max="24" step="0.25" value="0" aria-label="Przesunięcie czasu w godzinach" />
+          <button class="ghost small" id="time-now" type="button">Wróć do teraz</button>
+        </div>
+        <label class="toggle"><span><strong>Chmury</strong><small>Zdjęcie chmur NASA</small></span><input type="checkbox" id="opt-clouds" /></label>
+        <label class="toggle"><span><strong>Powolny obrót</strong><small>Globus kręci się, gdy go nie dotykasz</small></span><input type="checkbox" id="opt-spin" /></label>
+
+        <div class="home-box">
+          <h3>Mój punkt</h3>
+          <p class="hint" id="home-info"></p>
+          <div class="row-buttons">
+            <button class="ghost small" id="home-gps" type="button">Użyj mojej lokalizacji</button>
+            <button class="ghost small" id="home-clear" type="button">Usuń</button>
+          </div>
+          <p class="hint">Możesz też dotknąć dowolnego miejsca na globusie i wybrać „Ustaw jako mój punkt”.</p>
+        </div>
+
+        <p class="credit">
+          Zdjęcia Ziemi: NASA Visible Earth — Blue Marble Next Generation, Black Marble 2016 i mozaika chmur (domena publiczna).
+          Silnik 3D: three.js (MIT). Czcionki Fraunces i Outfit (SIL OFL).
+        </p>
+        <p class="credit">Meridian · Beagleapps · <span id="version"></span></p>
+      </section>
+    </aside>
+
+    <div class="toast" id="toast" role="status" hidden></div>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

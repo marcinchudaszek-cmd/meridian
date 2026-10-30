@@ -1,0 +1,8 @@
+{
+  "appId": "com.beagleappsstudio.meridian",
+  "appName": "Meridian",
+  "webDir": "dist",
+  "backgroundColor": "#05070c",
+  "android": { "backgroundColor": "#05070c" },
+  "plugins": { "SystemBars": { "style": "DARK" } }
+}
