@@ -49,7 +49,7 @@
         <div id="detail"></div>
         <label class="search">
           <span class="sr">Szukaj miejsca</span>
-          <input id="q" type="search" placeholder="Szukaj miejsca albo kraju" autocomplete="off" enterkeyhint="search" />
+          <input id="q" type="search" placeholder="Szukaj miejsca — w katalogu i na mapie świata" autocomplete="off" enterkeyhint="search" />
         </label>
         <div class="chips" id="chips" role="tablist" aria-label="Kategorie"></div>
         <ul class="list" id="list"></ul>
@@ -75,7 +75,33 @@
           <label class="toggle"><span><strong>Ziemia z wczoraj</strong><small>Prawdziwe zdjęcie całej planety z satelitów NASA</small></span><input type="checkbox" id="layer-photo" /></label>
           <p class="hint" id="status-photo"></p>
         </div>
+        <div class="layer-block">
+          <p class="block-title">Dane z satelitów NASA</p>
+          <div class="radios" role="radiogroup" aria-label="Dane NASA">
+            <label><input type="radio" name="nasa" value="none" /> brak</label>
+            <label><input type="radio" name="nasa" value="fires" /> pożary</label>
+            <label><input type="radio" name="nasa" value="sst" /> temperatura oceanów</label>
+            <label><input type="radio" name="nasa" value="snow" /> śnieg i lód</label>
+          </div>
+          <div class="nasa-legend" data-kind="fires" hidden><i class="sw fire"></i> wykryty pożar albo inne silne źródło ciepła (wulkan, pochodnia gazowa)</div>
+          <div class="nasa-legend" data-kind="sst" hidden><span class="scale sst"></span><span class="scale-labels"><span>−2 °C</span><span>15 °C</span><span>32 °C</span></span></div>
+          <div class="nasa-legend" data-kind="snow" hidden><i class="sw snow"></i> śnieg na lądzie i lód morski</div>
+          <p class="hint" id="status-nasa"></p>
+        </div>
+        <div class="layer-block">
+          <label class="toggle"><span><strong>Księżyc</strong><small>W prawdziwym położeniu i fazie</small></span><input type="checkbox" id="layer-moon" /></label>
+          <p class="hint" id="status-moon"></p>
+          <button class="ghost small" id="show-moon" type="button">Faza i szczegóły</button>
+        </div>
+        <label class="toggle"><span><strong>Gwiazdozbiory</strong><small>Linie i polskie nazwy 88 gwiazdozbiorów; gwiazdy w tle są prawdziwe</small></span><input type="checkbox" id="layer-constellations" /></label>
+        <div class="layer-block">
+          <label class="toggle"><span><strong>Moje podróże</strong><small>Kraje oznaczone „Byłem tu”</small></span><input type="checkbox" id="layer-visited" /></label>
+          <p class="hint" id="status-visited"></p>
+        </div>
         <p class="credit">
+          Opisy miejsc: Wikipedia (CC BY-SA 4.0). Wyszukiwanie: © OpenStreetMap (Nominatim).
+          Gwiazdy i gwiazdozbiory: d3-celestial, Olaf Frohn (BSD), z katalogu Yale Bright Star. Księżyc: NASA SVS (domena publiczna), pozycja wg J. Meeusa.
+          Pożary, temperatura oceanów, śnieg: NASA GIBS (VIIRS, GHRSST MUR, MODIS).
           Trzęsienia ziemi: U.S. Geological Survey (domena publiczna). Granice i stolice: Natural Earth (domena publiczna).
           Orbita ISS: dane NORAD przez wheretheiss.at, obliczenia satellite.js (MIT).
           Zdjęcie dnia: NASA Global Imagery Browse Services (GIBS), część NASA Earth Science Data and Information System (ESDIS).

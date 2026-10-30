@@ -30,6 +30,11 @@ def ring(coords):
     return out
 
 
+CONTINENT_PL = {
+    "Africa": "Afryka", "Antarctica": "Antarktyda", "Asia": "Azja", "Europe": "Europa", "North America": "Ameryka Północna",
+    "Oceania": "Australia i Oceania", "South America": "Ameryka Południowa", "Seven seas (open ocean)": "Wyspy oceaniczne",
+}
+
 # nazwy, które w Natural Earth brzmią nieoficjalnie
 RENAME = {"Południowa Afryka": "Republika Południowej Afryki"}
 
@@ -47,6 +52,7 @@ for f in countries:
             "ly": round(p["LABEL_Y"], 2),
             "r": p["LABELRANK"],
             "pop": p["POP_EST"],
+            "con": CONTINENT_PL.get(p["CONTINENT"], p["CONTINENT"]),
             # tylko zewnętrzne pierścienie i dziury, bez innych atrybutów
             "p": [[ring(r) for r in poly] for poly in polys],
         }

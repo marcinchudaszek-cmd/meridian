@@ -60,6 +60,24 @@ export function yesterdayUTC(now = new Date()) {
   return new Date(now.getTime() - 86400000).toISOString().slice(0, 10);
 }
 
+/** Nakładki danych NASA GIBS: które warstwy, z którego dnia (opóźnienie danych) i czy barwić na jeden kolor. */
+export const NASA_LAYERS = {
+  fires: { layers: "VIIRS_SNPP_Thermal_Anomalies_375m_All,VIIRS_NOAA20_Thermal_Anomalies_375m_All", daysAgo: 1, tint: null },
+  sst: { layers: "GHRSST_L4_MUR_Sea_Surface_Temperature", daysAgo: 2, tint: null },
+  snow: { layers: "MODIS_Terra_L3_Snow_Extent_8Day,GHRSST_L4_MUR_Sea_Ice_Concentration", daysAgo: 9, tint: 0x9fdcff },
+};
+
+export function nasaUrl(kind, width, now = new Date()) {
+  const cfg = NASA_LAYERS[kind];
+  const date = new Date(now.getTime() - cfg.daysAgo * 86400000).toISOString().slice(0, 10);
+  return {
+    date,
+    url:
+      "https://gibs.earthdata.nasa.gov/wms/epsg4326/best/wms.cgi?SERVICE=WMS&REQUEST=GetMap&VERSION=1.3.0" +
+      `&LAYERS=${cfg.layers}&CRS=EPSG:4326&BBOX=-90,-180,90,180&WIDTH=${width}&HEIGHT=${width / 2}&FORMAT=image/png&TRANSPARENT=true&TIME=${date}`,
+  };
+}
+
 export function photoUrl(date, width) {
   const layers = "VIIRS_SNPP_CorrectedReflectance_TrueColor,VIIRS_NOAA20_CorrectedReflectance_TrueColor";
   return (

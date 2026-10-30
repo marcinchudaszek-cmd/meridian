@@ -102,6 +102,7 @@ export function createLayers(globe, { dataBase = "data/", onCountries, onQuakes,
           borders.add(s);
           labels.push(s);
         }
+        buildVisited();
         onCountries?.(countries);
         return countries;
       })
@@ -109,6 +110,70 @@ export function createLayers(globe, { dataBase = "data/", onCountries, onQuakes,
         countriesLoading = null;
       });
     return countriesLoading;
+  }
+
+  // ---------- odwiedzone kraje („Byłem tu”) ----------
+  const visitedMat = new THREE.MeshBasicMaterial({ color: 0x9fe0c0, transparent: true, opacity: 0.32, depthWrite: false, side: THREE.DoubleSide });
+  let visitedMesh = null;
+  let visitedIsos = new Set();
+  let visitedOn = true;
+
+  // trójkąty większe niż ok. 2,5° dzielimy, żeby płaski trójkąt nie chował się pod krzywizną kuli
+  function fillGeometry(list, radius) {
+    const pos = [];
+    const push = (a) => {
+      const p = latLngLocal(a[1], a[0], radius);
+      pos.push(p.x, p.y, p.z);
+    };
+    const mid = (a, b) => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+    const tri = (a, b, c, depth) => {
+      const len = Math.max(Math.hypot(a[0] - b[0], a[1] - b[1]), Math.hypot(b[0] - c[0], b[1] - c[1]), Math.hypot(c[0] - a[0], c[1] - a[1]));
+      if (depth < 7 && len > 2.5) {
+        const ab = mid(a, b);
+        const bc = mid(b, c);
+        const ca = mid(c, a);
+        tri(a, ab, ca, depth + 1);
+        tri(ab, b, bc, depth + 1);
+        tri(ca, bc, c, depth + 1);
+        tri(ab, bc, ca, depth + 1);
+      } else {
+        push(a);
+        push(b);
+        push(c);
+      }
+    };
+    const ring = (r) => {
+      const v = r.map(([x, y]) => new THREE.Vector2(x, y));
+      if (v.length > 1 && v[0].equals(v[v.length - 1])) v.pop();
+      return v;
+    };
+    for (const c of list) {
+      for (const poly of c.p) {
+        const contour = ring(poly[0]);
+        const holes = poly.slice(1).map(ring);
+        const all = contour.concat(...holes);
+        for (const [i, j, k] of THREE.ShapeUtils.triangulateShape(contour, holes)) {
+          tri([all[i].x, all[i].y], [all[j].x, all[j].y], [all[k].x, all[k].y], 0);
+        }
+      }
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+    return g;
+  }
+
+  function buildVisited() {
+    if (visitedMesh) {
+      root.remove(visitedMesh);
+      visitedMesh.geometry.dispose();
+      visitedMesh = null;
+    }
+    const list = countries.filter((c) => visitedIsos.has(c.iso));
+    if (!list.length) return;
+    visitedMesh = new THREE.Mesh(fillGeometry(list, 1.0007), visitedMat);
+    visitedMesh.renderOrder = 390;
+    visitedMesh.visible = visitedOn;
+    root.add(visitedMesh);
   }
 
   // ---------- siatka ----------
@@ -354,6 +419,14 @@ export function createLayers(globe, { dataBase = "data/", onCountries, onQuakes,
       state.borders = on;
       borders.visible = on;
       if (on) loadCountries();
+    },
+    setVisited(isos) {
+      visitedIsos = new Set(isos);
+      if (countries.length) buildVisited();
+    },
+    showVisited(on) {
+      visitedOn = on;
+      if (visitedMesh) visitedMesh.visible = on;
     },
     setGrid(on) {
       state.grid = on;

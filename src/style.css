@@ -802,3 +802,119 @@ a.ghost.link {
   text-decoration: none;
   color: var(--fg);
 }
+
+/* ---------- 1.4: Wikipedia, wyszukiwanie, NASA, podróże ---------- */
+
+.wiki {
+  margin-top: 10px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+.wiki.ready {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 12px;
+  color: #c9c6be;
+}
+.wiki img {
+  grid-row: span 3;
+  width: 76px;
+  height: 76px;
+  object-fit: cover;
+  border-radius: 10px;
+}
+.wiki p {
+  margin: 0;
+}
+.wiki a {
+  color: var(--primary);
+  font-size: 13px;
+}
+.wiki small {
+  color: var(--muted);
+  font-size: 11px;
+}
+.ghost.on-mint {
+  border-color: var(--mint);
+  color: var(--mint);
+}
+.list-head {
+  padding: 8px 12px 4px;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--primary);
+}
+.list .world-btn {
+  border: 1px dashed var(--border);
+}
+.list .world-btn strong {
+  color: var(--sky);
+}
+.mark.world {
+  background: var(--sky);
+}
+.block-title {
+  margin: 10px 0 2px;
+  font-weight: 500;
+  font-size: 14.5px;
+}
+.radios {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.radios label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 13px;
+  cursor: pointer;
+}
+.radios label:has(input:checked) {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: var(--primary-soft);
+}
+.radios input {
+  accent-color: var(--primary);
+  margin: 0;
+}
+.nasa-legend {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+.sw.fire {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #ff3b30;
+}
+.sw.snow {
+  width: 14px;
+  height: 9px;
+  border-radius: 3px;
+  background: #9fdcff;
+}
+.scale.sst {
+  display: block;
+  width: 100%;
+  height: 10px;
+  border-radius: 5px;
+  background: linear-gradient(90deg, #4b0a63, #3b3fd1, #1fa6e0, #2fd08a, #f5e43c, #f7951e, #e0261b);
+}
+.scale-labels {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  font-size: 11.5px;
+}

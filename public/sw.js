@@ -1,6 +1,6 @@
 // Service worker tylko dla wersji web. Strona: zawsze najpierw sieć (świeża wersja),
 // tekstury, skrypty i czcionki: z pamięci podręcznej, bo nazwy plików z buildu mają skrót treści.
-const CACHE = "meridian-v1";
+const CACHE = "meridian-v2";
 
 self.addEventListener("install", () => self.skipWaiting());
 self.addEventListener("activate", (e) => {

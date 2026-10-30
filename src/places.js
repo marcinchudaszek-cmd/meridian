@@ -20,7 +20,7 @@ const ROWS = [
   ["wroclaw", "Wrocław", "Polska", "p", 51.1079, 17.0385, "Europe/Warsaw", "Miasto mostów i wysp na Odrze, z krasnalami na każdym rogu."],
   ["torun", "Toruń", "Polska", "p", 53.0138, 18.5984, "Europe/Warsaw", "Gotyk z czerwonej cegły, miasto Kopernika i pierników."],
   ["poznan", "Poznań", "Polska", "p", 52.4064, 16.9252, "Europe/Warsaw", "Kolorowy Stary Rynek i koziołki trykające się na ratuszu w południe."],
-  ["morskie-oko", "Morskie Oko", "Tatry, Polska", "p", 49.2013, 20.071, "Europe/Warsaw", "Największe jezioro Tatr pod ścianą Mięguszowieckich Szczytów."],
+  ["morskie-oko", "Morskie Oko", "Tatry, Polska", "p", 49.2013, 20.071, "Europe/Warsaw", "Jedno z największych jezior Tatr, pod ścianą Mięguszowieckich Szczytów."],
   ["malbork", "Zamek w Malborku", "Polska", "p", 54.0398, 19.0277, "Europe/Warsaw", "Największy ceglany zamek świata, dawna stolica zakonu krzyżackiego."],
   ["wieliczka", "Kopalnia soli Wieliczka", "Polska", "p", 49.983, 20.055, "Europe/Warsaw", "Komory, kaplice i jeziora wykute w soli setki metrów pod ziemią."],
   ["bialowieza", "Puszcza Białowieska", "Polska i Białoruś", "p", 52.7008, 23.8693, "Europe/Warsaw", "Ostatni tak duży las nizinny Europy i dom żubrów."],

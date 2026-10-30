@@ -7,8 +7,11 @@ import { Capacitor } from "@capacitor/core";
 import { TextureLoader, SRGBColorSpace } from "three";
 import { createGlobe } from "./globe.js";
 import { createLayers } from "./layers.js";
+import { createSky } from "./sky.js";
+import { phaseName, nextPhases } from "./astro.js";
+import { searchPlaces, wikiFor } from "./search.js";
 import { countryAt } from "./countries.js";
-import { ago, formatMag, quakeLabel, inSunlight, yesterdayUTC, photoUrl } from "./live.js";
+import { ago, formatMag, quakeLabel, inSunlight, yesterdayUTC, photoUrl, nasaUrl, NASA_LAYERS } from "./live.js";
 import { PLACES, CATEGORIES } from "./places.js";
 import {
   subsolarPoint,
@@ -47,7 +50,19 @@ const store = {
 };
 
 const settings = { real: true, clouds: true, spin: true, tiles: true, labels: true, ...store.get("settings", {}) };
-const layerOn = { borders: true, grid: false, quakes: false, iss: true, photo: false, ...store.get("layers", {}) };
+const layerOn = {
+  borders: true,
+  grid: false,
+  quakes: false,
+  iss: true,
+  photo: false,
+  constellations: false,
+  moon: true,
+  visited: true,
+  nasa: "none",
+  ...store.get("layers", {}),
+};
+const visited = new Set(store.get("visited", []));
 const favorites = new Set(store.get("favorites", []));
 let own = store.get("own", []).filter((p) => p && p.name && Number.isFinite(p.lat) && Number.isFinite(p.lng));
 let home = store.get("home", null);
@@ -95,16 +110,24 @@ const globe = createGlobe($("#view"), {
       const q = layers.quake(instanceId);
       if (q) selectLayerItem({ type: "quake", id: q.id });
     } else if (pick.kind === "iss") selectLayerItem({ type: "iss" });
+    else if (pick.kind === "moon") selectLayerItem({ type: "moon" });
   },
 });
 const layers = createLayers(globe, {
   onCountries: () => {
-    if (selection?.type === "point") renderDetail();
+    if (selection && selection.type !== "quake") renderDetail();
+    renderLayerStatus("visited");
   },
   onQuakes: (list, error) => renderLayerStatus("quakes", error),
   onIss: (state, error) => {
     renderLayerStatus("iss", error);
     if (selection?.type === "iss" && mode === "places") renderDetail();
+  },
+});
+const sky = createSky(globe, {
+  onMoon: () => {
+    renderLayerStatus("moon");
+    if (selection?.type === "moon" && mode === "places") renderDetail();
   },
 });
 $("#zoom-in").onclick = () => globe.zoomBy(0.4);
@@ -193,9 +216,18 @@ function renderList() {
   const items = filtered();
   const date = now();
   list.innerHTML = "";
-  if (!items.length) {
-    list.innerHTML = `<li class="empty">${filter === "fav" ? "Nie masz jeszcze ulubionych. Otwórz miejsce i dotknij gwiazdki." : filter === "own" ? "Dotknij globusu w dowolnym punkcie, żeby dodać własne miejsce." : "Nic nie pasuje do wyszukiwania."}</li>`;
+  const q = query.trim();
+  if (world && world.q === q) renderWorld(list);
+  if (!items.length && !q) {
+    list.innerHTML = `<li class="empty">${filter === "fav" ? "Nie masz jeszcze ulubionych. Otwórz miejsce i dotknij gwiazdki." : filter === "own" ? "Dotknij globusu w dowolnym punkcie, żeby dodać własne miejsce." : "Nic tu nie ma."}</li>`;
     return;
+  }
+  if (q.length >= 2 && !(world && world.q === q)) {
+    const li = document.createElement("li");
+    li.innerHTML = `<button type="button" class="world-btn"><span class="copy"><strong></strong><span class="sub">${items.length ? "albo poszukaj poza katalogiem" : "w katalogu nie ma takiego miejsca"} — OpenStreetMap</span></span></button>`;
+    li.querySelector("strong").textContent = `Szukaj „${q}” na mapie świata`;
+    li.querySelector("button").onclick = () => worldSearch(q);
+    list.appendChild(li);
   }
   for (const p of items) {
     const li = document.createElement("li");
@@ -217,17 +249,112 @@ function renderList() {
   }
 }
 
+// ---------- wyszukiwanie na mapie świata ----------
+
+let world = null; // { q, loading, results, error }
+
+async function worldSearch(q) {
+  world = { q, loading: true, results: [], error: null };
+  renderList();
+  try {
+    world.results = await searchPlaces(q);
+  } catch {
+    world.error = "Nie udało się połączyć z OpenStreetMap — sprawdź internet.";
+  }
+  world.loading = false;
+  if (world.q === query.trim()) renderList();
+}
+
+function renderWorld(list) {
+  const head = document.createElement("li");
+  head.className = "list-head";
+  head.textContent = world.loading ? "Szukam na mapie świata…" : world.error || (world.results.length ? "Na mapie świata · © OpenStreetMap" : "Na mapie świata nic nie znalazłem.");
+  list.appendChild(head);
+  for (const r of world.results) {
+    const li = document.createElement("li");
+    const b = document.createElement("button");
+    b.type = "button";
+    b.innerHTML = `<i class="mark world"></i><span class="copy"><strong></strong><span class="sub"></span></span>`;
+    b.querySelector("strong").textContent = r.name;
+    b.querySelector(".sub").textContent = r.region;
+    b.onclick = () => selectFound(r);
+    li.appendChild(b);
+    list.appendChild(li);
+  }
+}
+
+function selectFound(r) {
+  stopTour();
+  selection = { type: "point", lat: r.lat, lng: r.lng, name: r.name, region: r.region };
+  globe.select(null, { fly: false });
+  globe.setPin("tap", r, 0x8fd3ff);
+  drawHomeArc(r);
+  globe.zoomTo(r.lat, r.lng, 0.03);
+  renderDetail();
+  renderList();
+  if (sheetState() === "mini") setSheet("peek");
+}
+
 $("#q").addEventListener("input", (e) => {
   query = e.target.value;
   renderList();
 });
 $("#q").addEventListener("keydown", (e) => {
   if (e.key === "Enter") {
+    const q = query.trim();
     const first = filtered()[0];
     if (first) selectPlace(first.id);
+    else if (q.length >= 2) worldSearch(q);
     e.target.blur();
   }
 });
+
+// ---------- mapa podróży ----------
+
+function toggleVisited(country) {
+  if (!country) return;
+  if (visited.has(country.iso)) visited.delete(country.iso);
+  else visited.add(country.iso);
+  store.set("visited", [...visited]);
+  layers.setVisited(visited);
+  renderLayerStatus("visited");
+  toast(visited.has(country.iso) ? `Dodano: ${country.n}. Odwiedzone kraje: ${visited.size}.` : `Usunięto: ${country.n}.`);
+}
+
+// ---------- udostępnianie widoku ----------
+
+const SHARE_BASE = "https://beagleapps.pl/apps/meridian/";
+
+async function shareView({ lat, lng, name, id }) {
+  const alt = Math.max(0.002, Math.min(3, globe.radius - 1));
+  const url = `${SHARE_BASE}#m=${lat.toFixed(4)},${lng.toFixed(4)},${alt.toFixed(4)}${id && !id.startsWith("own-") ? "," + id : ""}`;
+  const title = name ? `${name} — Meridian` : "Meridian — atlas nocy";
+  try {
+    if (native) {
+      const { Share } = await import("@capacitor/share");
+      await Share.share({ title, text: name ? `Zobacz ${name} na globusie:` : "Zobacz to miejsce na globusie:", url, dialogTitle: "Udostępnij widok" });
+    } else if (navigator.share) {
+      await navigator.share({ title, url });
+    } else {
+      await navigator.clipboard.writeText(url);
+      toast("Skopiowano link do schowka.");
+    }
+  } catch {
+    /* anulowane przez użytkownika */
+  }
+}
+
+/** Link z #m=lat,lng,wysokość[,id] — przelot do miejsca po starcie. */
+function openFromHash() {
+  const m = location.hash.match(/m=(-?[\d.]+),(-?[\d.]+),([\d.]+)(?:,([a-z0-9-]+))?/);
+  if (!m) return;
+  const [lat, lng, alt] = [Number(m[1]), Number(m[2]), Number(m[3])];
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+  const p = m[4] && byId(m[4]);
+  if (p) selectPlace(p.id, { fly: false });
+  else selectPoint({ lat, lng });
+  globe.zoomTo(lat, lng, alt);
+}
 
 // ---------- zaznaczenie i karta ----------
 
@@ -296,81 +423,166 @@ function renderDetail() {
     el.innerHTML = `<p class="hint">Przeciągnij globus, szczypnij, przewiń albo dotknij dwa razy, żeby przybliżyć — z bliska widać zdjęcia satelitarne. Dotknij świecącego znacznika lub miejsca z listy — kamera tam doleci. Dotknij dowolnego punktu Ziemi, żeby sprawdzić, która tam godzina.</p>`;
     return;
   }
-  if (selection.type === "place") {
-    const p = byId(selection.id);
-    if (!p) return clearSelection();
-    const fav = favorites.has(p.id);
-    el.innerHTML = `<div class="card">
-      <div class="card-head"><div><p class="region"></p><h2></h2></div>
-      <button class="star${fav ? " on" : ""}" type="button" aria-pressed="${fav}" aria-label="${fav ? "Usuń z ulubionych" : "Dodaj do ulubionych"}">${ICON.star}</button></div>
-      ${p.blurb ? '<p class="blurb"></p>' : ""}
-      ${factsHtml(p.lat, p.lng, p.tz)}
-      <div class="card-actions">
-        <button class="ghost small" data-act="close" type="button">Zamknij</button>
-        <button class="ghost small" data-act="zoom" type="button">Przybliż</button>
-        <button class="ghost small" data-act="home" type="button">Ustaw jako mój punkt</button>
-        ${p.cat === "own" ? '<button class="ghost small danger" data-act="delete" type="button">Usuń miejsce</button>' : ""}
-      </div></div>`;
-    el.querySelector(".region").textContent = p.region;
-    el.querySelector("h2").textContent = p.name;
-    if (p.blurb) el.querySelector(".blurb").textContent = p.blurb;
-    el.querySelector(".star").onclick = () => {
-      if (favorites.has(p.id)) favorites.delete(p.id);
-      else favorites.add(p.id);
-      store.set("favorites", [...favorites]);
-      renderDetail();
-      renderChips();
-    };
-    el.querySelector('[data-act="close"]').onclick = clearSelection;
-    el.querySelector('[data-act="home"]').onclick = () => setHome({ lat: p.lat, lng: p.lng, label: p.name });
-    el.querySelector('[data-act="zoom"]').onclick = () => zoomInto(p);
-    el.querySelector('[data-act="delete"]')?.addEventListener("click", () => {
-      own = own.filter((o) => o.id !== p.id);
-      favorites.delete(p.id);
-      store.set("own", own);
-      store.set("favorites", [...favorites]);
-      globe.setPlaces(allPlaces());
-      clearSelection();
-      renderChips();
-      toast(`Usunięto „${p.name}”.`);
-    });
-    return;
-  }
   if (selection.type === "quake") return renderQuakeCard(el);
   if (selection.type === "iss") return renderIssCard(el);
-  const { lat, lng } = selection;
-  const country = layers.countries.length ? countryAt(layers.countries, lat, lng) : null;
+  if (selection.type === "moon") return renderMoonCard(el);
+  if (selection.type === "place") return renderPlaceCard(el);
+  return renderPointCard(el);
+}
+
+function countryOf(lat, lng) {
+  return layers.countries.length ? countryAt(layers.countries, lat, lng) : null;
+}
+
+/** Przycisk „Byłem tu” dla kraju pod punktem. */
+function visitedButton(country) {
+  if (!country) return "";
+  const on = visited.has(country.iso);
+  return `<button class="ghost small${on ? " on-mint" : ""}" data-act="visited" type="button" aria-pressed="${on}">${on ? "✓ Byłem tu" : "Byłem tu"} · ${escapeHtml(country.n)}</button>`;
+}
+
+function bindCommon(el, { lat, lng, name, id, country }) {
+  el.querySelector('[data-act="close"]').onclick = clearSelection;
+  el.querySelector('[data-act="zoom"]').onclick = () => zoomInto({ lat, lng });
+  el.querySelector('[data-act="share"]').onclick = () => shareView({ lat, lng, name, id });
+  el.querySelector('[data-act="visited"]')?.addEventListener("click", () => {
+    toggleVisited(country);
+    renderDetail();
+  });
+}
+
+/** Opis z Wikipedii doczytywany pod kartą (gdy jest internet i pasujący artykuł). */
+function loadWiki(el, target) {
+  const box = el.querySelector(".wiki");
+  if (!box) return;
+  const token = (box.dataset.token = Math.random().toString(36));
+  wikiFor(target).then((w) => {
+    if (box.dataset.token !== token || !box.isConnected) return;
+    if (!w) {
+      box.remove();
+      return;
+    }
+    const text = w.extract.length > 420 ? w.extract.slice(0, 420).replace(/\s+\S*$/, "") + "…" : w.extract;
+    box.innerHTML = `${w.thumb ? `<img src="${escapeHtml(w.thumb)}" alt="" loading="lazy" />` : ""}<p></p>
+      <a href="${escapeHtml(w.url)}" target="_blank" rel="noopener">Czytaj w Wikipedii</a><small>Wikipedia, CC BY-SA 4.0</small>`;
+    box.querySelector("p").textContent = text;
+    box.classList.add("ready");
+  });
+}
+
+function renderPlaceCard(el) {
+  const p = byId(selection.id);
+  if (!p) return clearSelection();
+  const fav = favorites.has(p.id);
+  const country = countryOf(p.lat, p.lng);
+  el.innerHTML = `<div class="card">
+    <div class="card-head"><div><p class="region"></p><h2></h2></div>
+    <button class="star${fav ? " on" : ""}" type="button" aria-pressed="${fav}" aria-label="${fav ? "Usuń z ulubionych" : "Dodaj do ulubionych"}">${ICON.star}</button></div>
+    ${p.blurb ? '<p class="blurb"></p>' : ""}
+    ${factsHtml(p.lat, p.lng, p.tz)}
+    ${p.cat !== "own" ? '<div class="wiki">Szukam opisu w Wikipedii…</div>' : ""}
+    <div class="card-actions">
+      <button class="ghost small" data-act="close" type="button">Zamknij</button>
+      <button class="ghost small" data-act="zoom" type="button">Przybliż</button>
+      <button class="ghost small" data-act="share" type="button">Udostępnij</button>
+      <button class="ghost small" data-act="home" type="button">Ustaw jako mój punkt</button>
+      ${visitedButton(country)}
+      ${p.cat === "own" ? '<button class="ghost small danger" data-act="delete" type="button">Usuń miejsce</button>' : ""}
+    </div></div>`;
+  el.querySelector(".region").textContent = p.region;
+  el.querySelector("h2").textContent = p.name;
+  if (p.blurb) el.querySelector(".blurb").textContent = p.blurb;
+  el.querySelector(".star").onclick = () => {
+    if (favorites.has(p.id)) favorites.delete(p.id);
+    else favorites.add(p.id);
+    store.set("favorites", [...favorites]);
+    renderDetail();
+    renderChips();
+  };
+  bindCommon(el, { lat: p.lat, lng: p.lng, name: p.name, id: p.id, country });
+  el.querySelector('[data-act="home"]').onclick = () => setHome({ lat: p.lat, lng: p.lng, label: p.name });
+  el.querySelector('[data-act="delete"]')?.addEventListener("click", () => {
+    own = own.filter((o) => o.id !== p.id);
+    favorites.delete(p.id);
+    store.set("own", own);
+    store.set("favorites", [...favorites]);
+    globe.setPlaces(allPlaces());
+    clearSelection();
+    renderChips();
+    toast(`Usunięto „${p.name}”.`);
+  });
+  loadWiki(el, p);
+}
+
+/** Dotknięty punkt albo miejsce znalezione w wyszukiwarce (selection.name). */
+function renderPointCard(el) {
+  const { lat, lng, name, region } = selection;
+  const country = countryOf(lat, lng);
   const where = country ? escapeHtml(country.n) + (country.cap ? " · stolica: " + escapeHtml(country.cap) : "") : layers.countries.length ? "Morze albo ocean" : "Wybrany punkt";
   el.innerHTML = `<div class="card">
-    <p class="region">${where}</p><h2>${formatCoord(lat, lng).replace(/\s{3}/, ", ")}</h2>
-    ${factsHtml(lat, lng, null, false)}
+    <p class="region">${name ? escapeHtml(region || where) : where}</p><h2>${name ? escapeHtml(name) : formatCoord(lat, lng).replace(/\s{3}/, ", ")}</h2>
+    ${factsHtml(lat, lng, null, !!name)}
+    ${name ? '<div class="wiki">Szukam opisu w Wikipedii…</div>' : ""}
     <form class="name-form" hidden><input type="text" maxlength="40" placeholder="Nazwa miejsca" aria-label="Nazwa miejsca" required /><button class="solid" type="submit">Zapisz</button></form>
     <div class="card-actions">
       <button class="ghost small" data-act="close" type="button">Zamknij</button>
       <button class="ghost small" data-act="zoom" type="button">Przybliż</button>
+      <button class="ghost small" data-act="share" type="button">Udostępnij</button>
       <button class="ghost small" data-act="add" type="button">Dodaj do moich miejsc</button>
       <button class="ghost small" data-act="home" type="button">Ustaw jako mój punkt</button>
+      ${visitedButton(country)}
     </div></div>`;
   const form = el.querySelector(".name-form");
-  el.querySelector('[data-act="close"]').onclick = clearSelection;
-  el.querySelector('[data-act="home"]').onclick = () => setHome({ lat, lng, label: null });
-  el.querySelector('[data-act="zoom"]').onclick = () => zoomInto({ lat, lng });
+  bindCommon(el, { lat, lng, name, country });
+  el.querySelector('[data-act="home"]').onclick = () => setHome({ lat, lng, label: name || null });
   el.querySelector('[data-act="add"]').onclick = (e) => {
     form.hidden = false;
     e.currentTarget.hidden = true;
-    form.querySelector("input").focus();
+    const input = form.querySelector("input");
+    if (name) input.value = name.slice(0, 40);
+    input.focus();
   };
   form.onsubmit = (e) => {
     e.preventDefault();
-    const name = form.querySelector("input").value.trim();
-    if (!name) return;
-    const place = { id: "own-" + Date.now().toString(36), name, lat: +lat.toFixed(4), lng: +lng.toFixed(4) };
+    const n = form.querySelector("input").value.trim();
+    if (!n) return;
+    const place = { id: "own-" + Date.now().toString(36), name: n, lat: +lat.toFixed(4), lng: +lng.toFixed(4) };
     own.push(place);
     store.set("own", own);
     globe.setPlaces(allPlaces());
     renderChips();
     selectPlace(place.id, { fly: false });
-    toast(`Dodano „${name}” do moich miejsc.`);
+    toast(`Dodano „${n}” do moich miejsc.`);
+  };
+  if (name) loadWiki(el, { name, lat, lng, region });
+}
+
+function renderMoonCard(el) {
+  const m = sky.moon;
+  if (!m) return clearSelection();
+  const { toFull, toNew } = nextPhases(m);
+  const days = (d) => (d < 1 ? "mniej niż dzień" : `${Math.round(d)} ${Math.round(d) === 1 ? "dzień" : "dni"}`);
+  el.innerHTML = `<div class="card">
+    <p class="region">Księżyc · ${m.waxing ? "przybywa" : "ubywa"}</p>
+    <h2>${phaseName(m)[0].toUpperCase() + phaseName(m).slice(1)}, oświetlone ${Math.round(m.illum * 100)}%</h2>
+    <div class="facts">
+      <span>Wiek od nowiu: <b>${m.age.toFixed(1).replace(".", ",")} dnia</b></span>
+      <span>Pełnia za: <b>${days(toFull)}</b> · nów za: <b>${days(toNew)}</b></span>
+      <span>Odległość od Ziemi: <b>${Math.round(m.dist).toLocaleString("pl-PL")} km</b></span>
+      <span>W zenicie ${escapeHtml(overWhat(m.lat, m.lng).replace(/^nad: /, "nad krajem: "))}</span>
+    </div>
+    <div class="card-actions">
+      <button class="ghost small" data-act="close" type="button">Zamknij</button>
+      <button class="ghost small" data-act="view" type="button">Pokaż Księżyc</button>
+      <button class="ghost small" data-act="under" type="button">Punkt pod Księżycem</button>
+    </div></div>`;
+  el.querySelector('[data-act="close"]').onclick = clearSelection;
+  el.querySelector('[data-act="under"]').onclick = () => globe.focus(m.lat, m.lng, 2.6);
+  // kamera po drugiej stronie Ziemi, lekko z boku — Księżyc wychyla się zza brzegu globusu
+  el.querySelector('[data-act="view"]').onclick = () => {
+    const lat = Math.max(-65, Math.min(65, -m.lat + (m.lat > 0 ? -30 : 30)));
+    globe.zoomTo(lat, ((m.lng + 360) % 360) - 180, 3.8);
+    if (!isDesktop()) setSheet("mini");
   };
 }
 
@@ -487,11 +699,46 @@ function applyLayers() {
   layers.setIss(layerOn.iss);
   if (layerOn.photo) loadPhoto();
   else globe.setPhoto(null);
+  sky.setConstellations(layerOn.constellations);
+  sky.setMoon(layerOn.moon);
+  layers.setVisited(visited);
+  layers.showVisited(layerOn.visited);
+  loadNasa(layerOn.nasa);
   for (const k of Object.keys(layerOn)) {
     const input = $(`#layer-${k}`);
     if (input) input.checked = layerOn[k];
   }
+  const radio = document.querySelector(`input[name="nasa"][value="${layerOn.nasa}"]`);
+  if (radio) radio.checked = true;
+  document.querySelectorAll(".nasa-legend").forEach((l) => (l.hidden = l.dataset.kind !== layerOn.nasa));
   renderLayerStatus();
+}
+
+// nakładki danych NASA: jedna naraz, tekstury trzymane, żeby przełączanie było natychmiastowe
+const nasaTex = {};
+let nasaWanted = "none";
+function loadNasa(kind) {
+  nasaWanted = kind;
+  if (kind === "none") return globe.setOverlay(null);
+  const tint = NASA_LAYERS[kind].tint;
+  if (nasaTex[kind]) {
+    globe.setOverlay(nasaTex[kind].tex, tint);
+    return renderLayerStatus("nasa");
+  }
+  const big = globe.maxTextureSize >= 4096 && !matchMedia("(pointer: coarse)").matches;
+  const { url, date } = nasaUrl(kind, big ? 4096 : 2048);
+  renderLayerStatus("nasa", null, "Pobieram dane NASA…");
+  new TextureLoader().load(
+    url,
+    (tex) => {
+      tex.colorSpace = SRGBColorSpace;
+      nasaTex[kind] = { tex, date };
+      if (nasaWanted === kind) globe.setOverlay(tex, tint);
+      renderLayerStatus("nasa");
+    },
+    undefined,
+    () => renderLayerStatus("nasa", "Nie udało się pobrać danych NASA — sprawdź internet."),
+  );
 }
 
 function loadPhoto() {
@@ -547,7 +794,48 @@ function renderLayerStatus(only, error, info) {
     else if (layerOn.photo && photoDate) set("photo", `Zdjęcie z ${dayFmt.format(new Date(photoDate + "T12:00:00Z"))}, z satelitów Suomi NPP i NOAA-20. Zastępuje mozaikę chmur.`);
     else set("photo", "Prawdziwe chmury, śnieg i dym z wczorajszego dnia, sklejone z przelotów satelitów NASA.");
   }
+  if (show("nasa")) {
+    const k = layerOn.nasa;
+    const day = (d) => dayFmt.format(new Date(d + "T12:00:00Z"));
+    if (error) set("nasa", error);
+    else if (info) set("nasa", info);
+    else if (k === "none") set("nasa", "Dane z satelitów NASA nałożone na globus — jedna warstwa naraz.");
+    else if (!nasaTex[k]) set("nasa", "Pobieram dane NASA…");
+    else if (k === "fires") set("nasa", `Pożary i inne gorące punkty wykryte ${day(nasaTex[k].date)} przez satelity Suomi NPP i NOAA-20.`);
+    else if (k === "sst") set("nasa", `Temperatura powierzchni morza z ${day(nasaTex[k].date)} (analiza MUR, ok. 1 km).`);
+    else set("nasa", `Zasięg śniegu z 8 dni od ${day(nasaTex[k].date)} (MODIS) i lód morski.`);
+  }
+  if (show("moon")) {
+    const m = sky.moon;
+    set("moon", m ? `${phaseName(m)[0].toUpperCase() + phaseName(m).slice(1)}, oświetlone ${Math.round(m.illum * 100)}%. Dotknij Księżyca na niebie albo przycisku niżej.` : "Liczę położenie Księżyca…");
+  }
+  if (show("visited")) {
+    const list = layers.countries.filter((c) => visited.has(c.iso));
+    const cont = new Set(list.map((c) => c.con).filter((c) => c !== "Antarktyda" || list.length));
+    set(
+      "visited",
+      list.length
+        ? `${list.length} ${list.length === 1 ? "kraj" : list.length % 10 >= 2 && list.length % 10 <= 4 && (list.length % 100 < 10 || list.length % 100 >= 20) ? "kraje" : "krajów"} na ${cont.size} ${cont.size === 1 ? "kontynencie" : "kontynentach"}: ${list.map((c) => c.n).sort((a, b) => a.localeCompare(b, "pl")).join(", ")}.`
+        : "Dotknij lądu na globusie albo otwórz miejsce i wybierz „Byłem tu”, a kraj podświetli się na mapie.",
+    );
+  }
 }
+
+for (const k of ["constellations", "moon", "visited"]) {
+  $(`#layer-${k}`).onchange = (e) => {
+    layerOn[k] = e.target.checked;
+    store.set("layers", layerOn);
+    applyLayers();
+  };
+}
+document.querySelectorAll('input[name="nasa"]').forEach((r) => {
+  r.onchange = () => {
+    layerOn.nasa = r.value;
+    store.set("layers", layerOn);
+    applyLayers();
+  };
+});
+$("#show-moon").onclick = () => selectLayerItem({ type: "moon" });
 
 for (const k of ["borders", "grid", "quakes", "iss", "photo"]) {
   $(`#layer-${k}`).onchange = (e) => {
@@ -666,6 +954,7 @@ function setOffset(h) {
   $("#time-out").textContent = h ? (h > 0 ? "+" : "−") + formatHours(Math.abs(h)) : "teraz";
   $("#time-now").hidden = !h;
   applySun();
+  sky.setClock(now);
 }
 optTime.oninput = () => setOffset(Number(optTime.value));
 $("#time-now").onclick = () => setOffset(0);
@@ -944,7 +1233,7 @@ if (native) {
   });
 }
 
-if (import.meta.env.MODE === "development") window.__meridian = { globe, layers };
+if (import.meta.env.MODE === "development") window.__meridian = { globe, layers, sky };
 
 // ---------- start ----------
 
@@ -959,6 +1248,8 @@ setOffset(0);
 renderChips();
 renderHomeInfo();
 showView("places");
+globe.whenReady(openFromHash);
+window.addEventListener("hashchange", openFromHash);
 
 if (import.meta.env.MODE === "web" && "serviceWorker" in navigator) {
   window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));

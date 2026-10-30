@@ -134,7 +134,8 @@ export function createGlobe(container, { texturesBase = "textures/", onPlace, on
   const camera = new THREE.PerspectiveCamera(38, 1, 0.05, 200);
   const sunWorld = new THREE.Vector3(1, 0.3, 0.6).normalize();
 
-  // gwiazdy
+  // gwiazdy losowe — tylko do czasu, aż sky.js wczyta prawdziwe niebo
+  let randomStars = null;
   {
     const count = 1800;
     const pos = new Float32Array(count * 3);
@@ -151,7 +152,8 @@ export function createGlobe(container, { texturesBase = "textures/", onPlace, on
     const geo = new THREE.BufferGeometry();
     geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
     geo.setAttribute("color", new THREE.BufferAttribute(col, 3));
-    scene.add(new THREE.Points(geo, new THREE.PointsMaterial({ size: 0.07, vertexColors: true, transparent: true, opacity: 0.85, depthWrite: false })));
+    randomStars = new THREE.Points(geo, new THREE.PointsMaterial({ size: 0.07, vertexColors: true, transparent: true, opacity: 0.85, depthWrite: false }));
+    scene.add(randomStars);
   }
 
   const pivot = new THREE.Group();
@@ -164,11 +166,11 @@ export function createGlobe(container, { texturesBase = "textures/", onPlace, on
   const maxAniso = renderer.capabilities.getMaxAnisotropy();
   const maxTex = renderer.capabilities.maxTextureSize;
   let pending = 4;
-  let onReady = null;
+  const onReady = [];
   const tex = (name, srgb) => {
     const t = loader.load(texturesBase + name, () => {
       pending -= 1;
-      if (pending === 0 && onReady) onReady();
+      if (pending === 0) onReady.splice(0).forEach((fn) => fn());
     });
     if (srgb) t.colorSpace = THREE.SRGBColorSpace;
     t.anisotropy = Math.min(8, maxAniso);
@@ -206,6 +208,30 @@ export function createGlobe(container, { texturesBase = "textures/", onPlace, on
   pivot.add(clouds);
 
   const tiles = createTileLayer({ parent: pivot, sunDir: sunWorld, latLngLocal, onActive: onTiles });
+
+  // nakładka danych NASA (pożary, temperatura oceanów, śnieg) — bez oświetlenia, żeby kolory skali były czytelne
+  const overlayMat = new THREE.ShaderMaterial({
+    uniforms: { map: { value: blankTex }, tint: { value: new THREE.Color(1, 1, 1) }, useTint: { value: 0 }, opacity: { value: 0.9 } },
+    vertexShader: EARTH_VERT,
+    fragmentShader: /* glsl */ `
+      uniform sampler2D map;
+      uniform vec3 tint;
+      uniform float useTint;
+      uniform float opacity;
+      varying vec2 vUv;
+      void main() {
+        vec4 t = texture2D(map, vUv);
+        gl_FragColor = vec4(mix(t.rgb, tint, useTint), t.a * opacity);
+        #include <colorspace_fragment>
+      }
+    `,
+    transparent: true,
+    depthWrite: false,
+  });
+  const overlay = new THREE.Mesh(new THREE.SphereGeometry(1.0015, 128, 96), overlayMat);
+  overlay.renderOrder = 320; // nad chmurami
+  overlay.visible = false;
+  pivot.add(overlay);
 
   const atmo = (scale, side, power, strength) =>
     new THREE.Mesh(
@@ -600,6 +626,19 @@ export function createGlobe(container, { texturesBase = "textures/", onPlace, on
     onFrame(fn) {
       frameHooks.push(fn);
     },
+    /** Nakładka danych; tint — jednolity kolor zamiast palety źródła (śnieg). */
+    setOverlay(texture, tint = null) {
+      overlay.visible = !!texture;
+      overlayMat.uniforms.map.value = texture || blankTex;
+      overlayMat.uniforms.useTint.value = tint ? 1 : 0;
+      if (tint) overlayMat.uniforms.tint.value.set(tint);
+    },
+    hideRandomStars() {
+      if (randomStars) randomStars.visible = false;
+    },
+    get sunDir() {
+      return sunWorld;
+    },
     setPhoto(texture) {
       earthMat.uniforms.photoMap.value = texture || blankTex;
       earthMat.uniforms.photoMix.value = texture ? 1 : 0;
@@ -618,7 +657,7 @@ export function createGlobe(container, { texturesBase = "textures/", onPlace, on
     },
     whenReady(fn) {
       if (pending === 0) fn();
-      else onReady = fn;
+      else onReady.push(fn);
     },
   };
 }
